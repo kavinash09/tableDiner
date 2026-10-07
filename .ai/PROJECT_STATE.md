@@ -1,12 +1,12 @@
 # PROJECT STATE
 
 **Current Phase**: Pilot MVP
-**Overall Progress**: Chapter 2 Complete, moving to Chapter 3.
+**Overall Progress**: Chapter 3 (API & Customer Web Core Flow) Complete, moving to Chapter 4.
 
 ## Component Status Checklist
-- [x] **Database Schema**: (`packages/db`) Schema designed with Menu, Orders, Sessions.
-- [x] **Monorepo Wiring**: `pnpm` workspaces, `tsconfig.base.json`, and all `package.json` files are initialized and linked.
-- [ ] **API Backend**: (`apps/api`) Fastify setup pending.
-- [ ] **Customer Web**: (`apps/customer-web`) Pending.
+- [x] **Database Schema**: (`packages/db`) Schema designed and seed script written.
+- [x] **Monorepo Wiring**: `pnpm` workspaces configured.
+- [x] **API Backend**: (`apps/api`) Fastify running on port 3001, CORS enabled, connected to Prisma.
+- [x] **Customer Web**: (`apps/customer-web`) React + Vite setup. Scaffolds QR code extraction and menu fetching.
 - [ ] **Restaurant Admin**: (`apps/restaurant-admin`) Pending.
 - [ ] **Platform Admin**: (`apps/platform-admin`) Pending.

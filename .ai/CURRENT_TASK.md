@@ -1,10 +1,10 @@
 # CURRENT TASK
 
-**Active Objective**: Chapter 3 - API & Customer Web (Initial Setup)
+**Active Objective**: Verify System Health & Execute DB Push (Local Testing)
 
 ## Execution Checklist:
-- [ ] Setup Fastify server in `apps/api` with TRPC/REST.
-- [ ] Connect `apps/api` to `@tablediner/db` Prisma Client.
-- [ ] Setup initial React scaffolding in `apps/customer-web`.
-- [ ] Build the QR Scan & Menu Fetch flow.
-- [ ] Execute **State Checkpoint** to update `.ai` files once complete.
+- [ ] User runs `pnpm install`.
+- [ ] User runs `npx prisma db push` inside `packages/db`.
+- [ ] User runs `npx ts-node seed.ts` inside `packages/db`.
+- [ ] User boots the servers via `pnpm run dev` to verify the End-to-End menu fetch flow.
+- [ ] Transition to **Chapter 4 - Restaurant Admin Dashboard**.
