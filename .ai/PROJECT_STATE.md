@@ -1,12 +1,12 @@
 # PROJECT STATE
 
 **Current Phase**: Pilot MVP
-**Overall Progress**: Chapter 3 (API & Customer Web Core Flow) Complete, moving to Chapter 4.
+**Overall Progress**: Chapters 1-6 Complete. MVP feature set is finished.
 
 ## Component Status Checklist
-- [x] **Database Schema**: (`packages/db`) Schema designed and seed script written.
-- [x] **Monorepo Wiring**: `pnpm` workspaces configured.
-- [x] **API Backend**: (`apps/api`) Fastify running on port 3001, CORS enabled, connected to Prisma.
-- [x] **Customer Web**: (`apps/customer-web`) React + Vite setup. Scaffolds QR code extraction and menu fetching.
-- [ ] **Restaurant Admin**: (`apps/restaurant-admin`) Pending.
-- [ ] **Platform Admin**: (`apps/platform-admin`) Pending.
+- [x] **Database Schema**: (`packages/db`) Fully modeled.
+- [x] **Monorepo Wiring**: Workspaces linked and functioning.
+- [x] **API Backend**: (`apps/api`) Endpoints for customer ordering, kitchen polling, super-admin, and payments complete.
+- [x] **Customer Web**: (`apps/customer-web`) Mobile-first QR scanning, cart, ordering, and bill payment flow complete.
+- [x] **Restaurant Admin**: (`apps/restaurant-admin`) Responsive tablet-first Kanban dashboard complete.
+- [x] **Platform Admin**: (`apps/platform-admin`) Tenant, restaurant, and QR code onboarding UI complete.

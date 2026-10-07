@@ -11,3 +11,5 @@
 9. NO SILENT BUSINESS ASSUMPTIONS (Ask the user if unsure).
 10. SQLITE + PRISMA ARE THE ABSOLUTE SOURCE OF TRUTH.
 11. IMPLEMENT ONLY MVP SCOPE (Avoid feature creep).
+12. **CURRENCY RULE**: All prices and amounts MUST be formatted and handled in Rupees (₹).
+13. **MOBILE-FIRST UI**: All frontend apps (especially customer-web and restaurant-admin) MUST be designed mobile-first to ensure a flawless experience across both phones and desktop browsers.
