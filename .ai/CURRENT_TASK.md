@@ -1,9 +1,12 @@
 # CURRENT TASK
 
-**Active Objective**: Finish Chapter 5 - Closing the Loop (Payments)
+**Active Objective**: Chapter 7 Planning: Real-world testing, error UX polish, and potential deployment prep.
+**Started**: 2026-10-08
 
 ## Execution Checklist:
-- [x] Build API route for fetching the active bill `GET /table/:qrCode/bill`.
-- [x] Build API route for closing the session and paying `POST /table/:qrCode/pay`.
-- [x] Update `apps/customer-web` UI to allow the user to view their itemized bill and pay to close the session.
-- [x] Execute **State Checkpoint** (Append to Decisions).
+- [ ] Identify top 3 real-world friction points from testing
+- [ ] Polish error UX across all apps
+- [ ] Prepare for potential deployment
+
+## Next Up After This
+- Post-MVP feature expansion based on user feedback.

@@ -1,7 +1,7 @@
 # PROJECT STATE
 
-**Current Phase**: Pilot MVP
-**Overall Progress**: Chapters 1-6 Complete. MVP feature set is finished.
+**Current Phase**: Pilot MVP — Hardened
+**Overall Progress**: Chapters 1-6 Complete + Hygiene Sprint done. Medium-term architecture fulfilled. Ready for Chapter 7.
 
 ## Component Status Checklist
 - [x] **Database Schema**: (`packages/db`) Fully modeled.

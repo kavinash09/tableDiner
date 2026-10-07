@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import type { AdminRestaurantsResponse } from '@tablediner/shared-types';
+
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
 const App = () => {
-  const [tenants, setTenants] = useState<any[]>([]);
+  const [tenants, setTenants] = useState<AdminRestaurantsResponse>([]);
   const [tenantName, setTenantName] = useState('');
   const [restaurantName, setRestaurantName] = useState('');
   const [tablesCount, setTablesCount] = useState(1);
@@ -9,7 +12,7 @@ const App = () => {
 
   const fetchTenants = async () => {
     try {
-      const res = await fetch('http://localhost:3001/admin/restaurants');
+      const res = await fetch(`${API_URL}/admin/restaurants`);
       const data = await res.json();
       setTenants(data);
     } catch (err) {
@@ -25,7 +28,7 @@ const App = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await fetch('http://localhost:3001/admin/restaurants', {
+      await fetch(`${API_URL}/admin/restaurants`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tenantName, restaurantName, tablesCount: Number(tablesCount) })
@@ -114,7 +117,7 @@ const App = () => {
             minWidth: '280px'
           }}>
             <h3 style={{ margin: '0 0 12px 0' }}>{tenant.name}</h3>
-            {tenant.restaurants.map((restaurant: any) => (
+            {tenant.restaurants.map((restaurant) => (
               <div key={restaurant.id} style={{ marginTop: '12px', padding: '12px', background: '#f5f5f5', borderRadius: '6px' }}>
                 <strong style={{ display: 'block', marginBottom: '4px' }}>{restaurant.name}</strong> 
                 <span style={{ fontSize: '12px', color: '#666', background: '#e0e0e0', padding: '2px 6px', borderRadius: '4px' }}>
@@ -124,7 +127,7 @@ const App = () => {
                 <div style={{ marginTop: '12px' }}>
                   <p style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: 'bold' }}>Tables & QRs:</p>
                   <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {restaurant.tables.map((table: any) => (
+                    {restaurant.tables.map((table) => (
                       <li key={table.id}>
                         {table.name} 
                         <br />

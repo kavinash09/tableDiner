@@ -42,3 +42,24 @@
 - **Billing API**: Added `GET /table/:qrCode/bill` to fetch a running total for the active session, properly calculating line items.
 - **Payment API**: Added `POST /table/:qrCode/pay` which mocks a successful payment, creates a `Payment` database record, and transitions the `Session` status to `CLOSED`.
 - **Customer Checkout UI**: Updated `apps/customer-web` with a "View Bill / Pay" modal. It fetches the itemized bill, displays the total, and allows the user to close the tab, satisfying the complete TableDiner user journey.
+
+### 2026-10-08: Project Hygiene Sprint (Post-Scrutiny Fix)
+- **Context**: Heavy scrutiny identified 13 gaps that would cause context rot and bugs at scale. All critical and high-priority items were fixed in one session.
+- **ARCHITECTURE.md**: Completely rewritten to include port registry, full 9-route API catalog, shared package stub status, and data flow diagram. Was previously empty since Chapter 1.
+- **RETRIEVAL_GUIDE.md**: Added mandatory Phase 1.5 Sanity Check — agents must now validate brain files against real code before writing anything.
+- **AGENTS.md**: Rewritten from scratch as a 16-rule comprehensive AI development constitution encoding all lessons learned. Includes anti-patterns, code examples, and a quick reference card.
+- **API error handling**: Added `try/catch` to all 9 route handlers. Previously, any Prisma failure would crash the Fastify process silently.
+- **VITE_API_URL**: Removed 8 hardcoded `localhost:3001` instances across 3 apps. All frontends now use `import.meta.env.VITE_API_URL` with `.env.local` fallback.
+- **tsx over ts-node**: Fixed `apps/api` and `packages/db` dev scripts from `ts-node` (broken) to `tsx` (works). This was a documented bug that was never committed back to the scripts.
+- **TypeScript version**: Fixed `packages/db` from pinning broken `^7.0.2` to `^5.2.2`, matching the rest of the monorepo.
+- **Root README.md**: Updated from "Chapter 1 complete" to reflect Chapter 6 complete state. Includes port table and proper getting-started instructions.
+- **docs/DOMAIN_MODEL.md**: Created to fix the broken README link. `packages/db/ERD.md` had a circular reference ("See DOMAIN_MODEL.md") pointing to a nonexistent file.
+- **CURRENT_TASK.md**: Replaced done-state retrospective with forward-looking task queue with remaining medium-term items.
+
+### 2026-10-08: Medium-Term Architecture Fulfillment (Post-Scrutiny Fix)
+- **Decision**: Populated `packages/shared-types/src/index.ts` with explicit TypeScript interfaces mapping all Prisma models and API response payloads.
+- **Why**: The frontend applications were relying on `any` types and undocumented assumptions about the API shape, leading to brittleness and potential runtime errors.
+- **Decision**: Populated `packages/shared-validation/src/index.ts` with Zod schemas for all API POST/PATCH inputs. Refactored `apps/api/src/index.ts` to use `safeParse` on these schemas.
+- **Why**: Blind type assertions (`request.body as ...`) on the backend offered zero runtime safety. Invalid inputs would previously be sent directly to the database, potentially causing crashes or corruption.
+- **Decision**: Refactored all three React apps (`customer-web`, `restaurant-admin`, `platform-admin`) to use the new shared types instead of `any`.
+- **Why**: Enforces end-to-end type safety between the backend and frontends as mandated by the project standards.

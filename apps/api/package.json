@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "ts-node src/index.ts",
+    "dev": "tsx --watch src/index.ts",
     "build": "tsc"
   },
   "dependencies": {
@@ -14,8 +14,9 @@
     "@fastify/cors": "^8.5.0"
   },
   "devDependencies": {
-    "ts-node": "^10.9.1",
+    "tsx": "^4.7.0",
     "typescript": "^5.2.2",
     "@types/node": "^18.0.0"
   }
 }
+
