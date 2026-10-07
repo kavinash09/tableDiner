@@ -34,8 +34,8 @@ async function main() {
       restaurantId: restaurant.id,
       items: {
         create: [
-          { name: 'Garlic Bread', price: 5.99, description: 'Warm and crispy', restaurantId: restaurant.id },
-          { name: 'Caesar Salad', price: 8.99, restaurantId: restaurant.id }
+          { name: 'Garlic Bread', price: 149.99, description: 'Warm and crispy', restaurantId: restaurant.id },
+          { name: 'Caesar Salad', price: 199.99, restaurantId: restaurant.id }
         ]
       }
     }
@@ -47,8 +47,8 @@ async function main() {
       restaurantId: restaurant.id,
       items: {
         create: [
-          { name: 'Truffle Pasta', price: 18.99, description: 'Rich mushroom sauce', restaurantId: restaurant.id },
-          { name: 'Wagyu Burger', price: 24.99, description: 'With crispy fries', restaurantId: restaurant.id }
+          { name: 'Truffle Pasta', price: 499.99, description: 'Rich mushroom sauce', restaurantId: restaurant.id },
+          { name: 'Wagyu Burger', price: 599.99, description: 'With crispy fries', restaurantId: restaurant.id }
         ]
       }
     }

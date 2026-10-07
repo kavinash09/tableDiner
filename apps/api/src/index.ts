@@ -1,17 +1,66 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
-import { prisma } from '@tablediner/db';
+import multipart from '@fastify/multipart';
+import staticPlugin from '@fastify/static';
+import path from 'path';
+import fs from 'fs';
+import { config } from './config';
 import {
   PlaceOrderSchema,
   PaySchema,
   UpdateOrderStatusSchema,
-  CreateRestaurantSchema
+  CreateRestaurantSchema,
+  UpdateRestaurantSettingsSchema
 } from '@tablediner/shared-validation';
+import { processUpload } from './uploadService';
+
+// Import Adapters
+import { 
+  PrismaTableRepository, 
+  PrismaSessionRepository, 
+  PrismaOrderRepository, 
+  PrismaPaymentRepository,
+  PrismaRestaurantRepository,
+  PrismaMenuItemRepository
+} from './adapters/secondary/db/PrismaRepositories';
+
+// Import Core Use Cases
+import { AppUseCases } from './core/use-cases/AppUseCases';
+
+// Ensure uploads dir exists for local dev
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
 
 const app = Fastify({ logger: true });
 
+// Dependency Injection Setup
+const tableRepo = new PrismaTableRepository();
+const sessionRepo = new PrismaSessionRepository();
+const orderRepo = new PrismaOrderRepository();
+const paymentRepo = new PrismaPaymentRepository();
+const restaurantRepo = new PrismaRestaurantRepository();
+const menuItemRepo = new PrismaMenuItemRepository();
+
+const appUseCases = new AppUseCases(
+  tableRepo,
+  sessionRepo,
+  orderRepo,
+  paymentRepo,
+  restaurantRepo,
+  menuItemRepo
+);
+
 app.register(cors, {
   origin: '*', // For MVP/development, allow all origins
+});
+
+app.register(multipart, {
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
+
+app.register(staticPlugin, {
+  root: uploadsDir,
+  prefix: '/uploads/',
 });
 
 app.get('/health', async () => ({ status: 'ok' }));
@@ -20,32 +69,9 @@ app.get('/health', async () => ({ status: 'ok' }));
 app.get('/table/:qrCode', async (request, reply) => {
   const { qrCode } = request.params as { qrCode: string };
   try {
-    const table = await prisma.table.findUnique({
-      where: { qrCode },
-      include: {
-        restaurant: {
-          include: {
-            menuCategories: { include: { items: true } },
-            menuItems: { where: { categoryId: null } },
-          },
-        },
-        sessions: { where: { status: 'ACTIVE' }, take: 1 },
-      },
-    });
-
-    if (!table) {
-      return reply.status(404).send({ error: 'Table not found or invalid QR code.' });
-    }
-
-    return {
-      table: { id: table.id, name: table.name },
-      restaurant: { id: table.restaurant.id, name: table.restaurant.name },
-      session: table.sessions[0] || null,
-      menu: {
-        categories: table.restaurant.menuCategories,
-        uncategorized: table.restaurant.menuItems,
-      },
-    };
+    const data = await appUseCases.getTableDetails(qrCode);
+    if (!data) return reply.status(404).send({ error: 'Table not found or invalid QR code.' });
+    return data;
   } catch (err) {
     app.log.error(err);
     return reply.status(500).send({ error: 'Failed to fetch table data.' });
@@ -62,36 +88,11 @@ app.post('/table/:qrCode/order', async (request, reply) => {
   const { items } = parsed.data;
 
   try {
-    const table = await prisma.table.findUnique({
-      where: { qrCode },
-      include: { sessions: { where: { status: 'ACTIVE' }, take: 1 } },
-    });
-
-    if (!table) return reply.status(404).send({ error: 'Table not found.' });
-
-    // Get or auto-create active session
-    let session = table.sessions[0];
-    if (!session) {
-      session = await prisma.session.create({
-        data: { status: 'ACTIVE', restaurantId: table.restaurantId, tableId: table.id },
-      });
-    }
-
-    const order = await prisma.order.create({
-      data: {
-        sessionId: session.id,
-        status: 'RECEIVED',
-        items: {
-          create: items.map(item => ({ menuItemId: item.menuItemId, quantity: item.quantity })),
-        },
-      },
-      include: { items: true },
-    });
-
+    const order = await appUseCases.placeOrder(qrCode, items);
     return { success: true, order };
-  } catch (err) {
+  } catch (err: any) {
     app.log.error(err);
-    return reply.status(500).send({ error: 'Failed to place order.' });
+    return reply.status(err.message === 'Table not found.' ? 404 : 500).send({ error: err.message || 'Failed to place order.' });
   }
 });
 
@@ -99,39 +100,11 @@ app.post('/table/:qrCode/order', async (request, reply) => {
 app.get('/table/:qrCode/bill', async (request, reply) => {
   const { qrCode } = request.params as { qrCode: string };
   try {
-    const table = await prisma.table.findUnique({
-      where: { qrCode },
-      include: {
-        sessions: {
-          where: { status: 'ACTIVE' },
-          take: 1,
-          include: {
-            orders: { include: { items: { include: { menuItem: true } } } },
-          },
-        },
-      },
-    });
-
-    if (!table || table.sessions.length === 0) {
-      return reply.status(404).send({ error: 'No active session found.' });
-    }
-
-    const session = table.sessions[0];
-    let totalAmount = 0;
-    const itemized: { name: string; quantity: number; price: number; lineTotal: number }[] = [];
-
-    for (const order of session.orders) {
-      for (const item of order.items) {
-        const lineTotal = item.menuItem.price * item.quantity;
-        totalAmount += lineTotal;
-        itemized.push({ name: item.menuItem.name, quantity: item.quantity, price: item.menuItem.price, lineTotal });
-      }
-    }
-
-    return { sessionId: session.id, itemized, totalAmount };
-  } catch (err) {
+    const bill = await appUseCases.getBill(qrCode);
+    return bill;
+  } catch (err: any) {
     app.log.error(err);
-    return reply.status(500).send({ error: 'Failed to fetch bill.' });
+    return reply.status(err.message === 'No active session found.' ? 404 : 500).send({ error: err.message || 'Failed to fetch bill.' });
   }
 });
 
@@ -144,40 +117,18 @@ app.post('/table/:qrCode/pay', async (request, reply) => {
   const { amount } = parsed.data;
 
   try {
-    const table = await prisma.table.findUnique({
-      where: { qrCode },
-      include: { sessions: { where: { status: 'ACTIVE' }, take: 1 } },
-    });
-
-    if (!table || table.sessions.length === 0) {
-      return reply.status(404).send({ error: 'No active session found.' });
-    }
-
-    const session = table.sessions[0];
-
-    await prisma.$transaction([
-      prisma.payment.create({ data: { sessionId: session.id, status: 'COMPLETED', amount } }),
-      prisma.session.update({ where: { id: session.id }, data: { status: 'CLOSED' } }),
-    ]);
-
+    await appUseCases.payBill(qrCode, amount);
     return { success: true, message: 'Payment successful. Session closed.' };
-  } catch (err) {
+  } catch (err: any) {
     app.log.error(err);
-    return reply.status(500).send({ error: 'Payment failed. Please try again.' });
+    return reply.status(err.message === 'No active session found.' ? 404 : 500).send({ error: err.message || 'Payment failed. Please try again.' });
   }
 });
 
 // --- KITCHEN DASHBOARD ROUTES ---
 app.get('/kitchen/orders', async (request, reply) => {
   try {
-    const orders = await prisma.order.findMany({
-      where: { status: { in: ['RECEIVED', 'PREPARING', 'READY'] } },
-      include: {
-        items: { include: { menuItem: true } },
-        session: { include: { table: true } },
-      },
-      orderBy: { id: 'asc' },
-    });
+    const orders = await appUseCases.getKitchenOrders();
     return orders;
   } catch (err) {
     app.log.error(err);
@@ -194,7 +145,7 @@ app.patch('/kitchen/orders/:orderId', async (request, reply) => {
   const { status } = parsed.data;
 
   try {
-    const order = await prisma.order.update({ where: { id: orderId }, data: { status } });
+    const order = await appUseCases.updateOrderStatus(orderId, status);
     return order;
   } catch (err) {
     app.log.error(err);
@@ -205,9 +156,7 @@ app.patch('/kitchen/orders/:orderId', async (request, reply) => {
 // --- PLATFORM ADMIN ROUTES ---
 app.get('/admin/restaurants', async (request, reply) => {
   try {
-    const tenants = await prisma.tenant.findMany({
-      include: { restaurants: { include: { tables: true } } },
-    });
+    const tenants = await appUseCases.getPlatformTenants();
     return tenants;
   } catch (err) {
     app.log.error(err);
@@ -223,24 +172,70 @@ app.post('/admin/restaurants', async (request, reply) => {
   const { tenantName, restaurantName, tablesCount } = parsed.data;
 
   try {
-    const tenant = await prisma.tenant.create({
-      data: {
-        name: tenantName,
-        restaurants: {
-          create: {
-            name: restaurantName,
-            tables: {
-              create: Array.from({ length: tablesCount }).map((_, i) => ({ name: `Table ${i + 1}` })),
-            },
-          },
-        },
-      },
-      include: { restaurants: { include: { tables: true } } },
-    });
+    const tenant = await appUseCases.createPlatformTenant(tenantName, restaurantName, tablesCount);
     return tenant;
   } catch (err) {
     app.log.error(err);
     return reply.status(500).send({ error: 'Failed to create tenant.' });
+  }
+});
+
+app.get('/restaurant/current', async (request, reply) => {
+  try {
+    const restaurant = await appUseCases.getCurrentRestaurant();
+    return restaurant;
+  } catch (err) {
+    app.log.error(err);
+    return reply.status(500).send({ error: 'Failed to fetch restaurant' });
+  }
+});
+
+app.patch('/restaurant/:id/settings', async (request, reply) => {
+  const { id } = request.params as { id: string };
+  try {
+    const parseResult = UpdateRestaurantSettingsSchema.safeParse(request.body);
+    if (!parseResult.success) {
+      return reply.status(400).send({ error: parseResult.error.errors[0].message });
+    }
+
+    const { theme, qrTemplate } = parseResult.data;
+    const restaurant = await appUseCases.updateRestaurantSettings(id, theme, qrTemplate);
+    return restaurant;
+  } catch (err) {
+    app.log.error(err);
+    return reply.status(500).send({ error: 'Failed to update settings.' });
+  }
+});
+
+app.post('/restaurant/:id/banner', async (request, reply) => {
+  const { id } = request.params as { id: string };
+  try {
+    const data = await request.file();
+    if (!data) return reply.status(400).send({ error: 'No file uploaded' });
+
+    const bannerUrl = await processUpload(data);
+    await appUseCases.updateRestaurantBanner(id, bannerUrl);
+    
+    return { success: true, bannerUrl };
+  } catch (err) {
+    app.log.error(err);
+    return reply.status(500).send({ error: 'Failed to upload banner' });
+  }
+});
+
+app.post('/menu-item/:id/image', async (request, reply) => {
+  const { id } = request.params as { id: string };
+  try {
+    const data = await request.file();
+    if (!data) return reply.status(400).send({ error: 'No file uploaded' });
+
+    const imageUrl = await processUpload(data);
+    await appUseCases.updateMenuItemImage(id, imageUrl);
+    
+    return { success: true, imageUrl };
+  } catch (err) {
+    app.log.error(err);
+    return reply.status(500).send({ error: 'Failed to upload image' });
   }
 });
 

@@ -305,3 +305,30 @@ Examples of things that require explicit clarification:
 | TypeScript version | `^5.2.2` everywhere |
 | Mobile layout | `flexWrap: 'wrap'`, `flex: '1 1 300px'` |
 | New dependency | Ask user first |
+
+---
+
+## 🛑 RULE 17: Enforce Hexagonal Architecture (Ports and Adapters)
+
+All backend code (`apps/api`) MUST strictly follow a Hexagonal Architecture. 
+
+**Rules:**
+- ✅ **Core (Domain/Use Cases)**: Business logic lives here. It must NEVER import from `fastify`, `prisma`, or external APIs directly.
+- ✅ **Ports**: Define TypeScript interfaces in the Core for outbound operations (e.g., `RestaurantRepository`).
+- ✅ **Primary Adapters (Inbound)**: HTTP routes (Fastify) belong here. They parse input, call Use Cases, and format responses.
+- ✅ **Secondary Adapters (Outbound)**: Implementations of Ports (e.g., `PrismaRestaurantRepository`) live here. This is the ONLY place where `prisma` is imported.
+- ❌ **NEVER** write Prisma queries directly inside Fastify route handlers.
+
+**Directory Structure:**
+```
+apps/api/src/
+  core/
+    ports/       # Interfaces (e.g. Database, S3)
+    use-cases/   # Pure business logic
+  adapters/
+    primary/
+      http/      # Fastify routes
+    secondary/
+      db/        # Prisma repository implementations
+  index.ts       # Dependency injection & bootstrap
+```

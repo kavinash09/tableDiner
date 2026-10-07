@@ -9,6 +9,9 @@ export interface Restaurant {
   tenantId: string;
   name: string;
   subscriptionTier: string;
+  theme: string;
+  qrTemplate: string;
+  bannerUrl: string | null;
 }
 
 export interface Table {
@@ -29,6 +32,7 @@ export interface MenuItem {
   name: string;
   description: string | null;
   price: number;
+  imageUrl: string | null;
   categoryId: string | null;
   restaurantId: string;
 }
@@ -49,6 +53,7 @@ export interface Order {
 export interface OrderItem {
   id: string;
   quantity: number;
+  notes?: string | null;
   orderId: string;
   menuItemId: string;
 }
@@ -67,7 +72,7 @@ export interface HealthResponse {
 
 export interface TableDetailsResponse {
   table: { id: string; name: string };
-  restaurant: { id: string; name: string };
+  restaurant: { id: string; name: string; theme: string; bannerUrl: string | null };
   session: Session | null;
   menu: {
     categories: (MenuCategory & { items: MenuItem[] })[];

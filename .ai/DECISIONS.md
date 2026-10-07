@@ -63,3 +63,42 @@
 - **Why**: Blind type assertions (`request.body as ...`) on the backend offered zero runtime safety. Invalid inputs would previously be sent directly to the database, potentially causing crashes or corruption.
 - **Decision**: Refactored all three React apps (`customer-web`, `restaurant-admin`, `platform-admin`) to use the new shared types instead of `any`.
 - **Why**: Enforces end-to-end type safety between the backend and frontends as mandated by the project standards.
+
+### 2026-10-08: Design System & Tailwind CSS (Chapter 7)
+- **Decision**: Defined a modern, high-contrast, minimalist design system (Zinc/Emerald palette, Inter font, 16px/12px border radii).
+- **Decision**: Introduced Tailwind CSS to `apps/customer-web`, `apps/restaurant-admin`, and `apps/platform-admin`.
+- **Why**: The user requested a consistent, cutting-edge UI/UX. While inline styles worked for the rough MVP, scaling a consistent design system requires a robust CSS framework. Tailwind was explicitly approved by the user per Rule 12.
+### 2026-10-08: Real-World Friction Fixes (Chapter 7)
+- **Decision**: Added Cart Modal with quantity/remove controls, backward transitions in Kitchen Dashboard, and `notes` field to `OrderItem`.
+- **Why**: An end-to-end simulation revealed 3 severe UX issues: no cart editing (users couldn't undo an accidental add), one-way kitchen flows (couldn't undo a status change), and lack of dietary note support.
+- **Trade-off accepted**: Added complexity to the `OrderItem` schema and `Customer Web` UI, but essential for real-world viability. User explicitly approved the schema change.
+### 2026-10-08: Aesthetic Overhaul (Chapter 7)
+- **Decision**: Redesigned the color schema and typography to match a clean editorial layout with a deep forest green palette (`#14351A`).
+- **Why**: The user provided a specific creative brief requesting an editorial, casual but refined cafe feeling featuring `EB Garamond` for headings, `Barlow` for functional information, and a printed menu clipboard aesthetic with bilingual (Polish/English) elements.
+- **Implementation**: 
+  - Overhauled `index.css` across all frontends to map the Tailwind CSS variables to the Forest Green palette.
+  - Rebuilt the layout in `customer-web/src/App.tsx` using a custom "clipboard and paper" CSS composition with delicate borders.
+  - Switched fonts by importing from Google Fonts.
+### 2026-10-08: Admin Customization & QR Generation (Chapter 7)
+- **Decision**: Added `theme` and `qrTemplate` fields to the `Restaurant` database model, and implemented a Settings tab in `Restaurant Admin`.
+- **Why**: The user requested that restaurant admins have the ability to control their theme and generate their own QR codes based on preconfigured templates.
+- **Implementation**:
+  - `qrcode.react` was introduced to render printable SVGs.
+  - The `Customer Web` app now dynamically overrides CSS variables (e.g. `--color-wood`, `--color-paper`) via inline styles based on the restaurant's active `theme`.
+
+### 2026-10-08: Menu & Banner Image Support (Chapter 7)
+- **Decision**: Added a "Menu Manager" tab in `Restaurant Admin` to upload menu item pictures, and a banner upload field in the Settings tab.
+- **Why**: The user requested that restaurant admins be able to upload images for the banner and individual menu items.
+- **Implementation**: 
+  - The API was extended to handle multipart uploads (local storage in dev, S3 in prod based on config).
+  - The `TableDetailsResponse` in `shared-types` was updated to include the `bannerUrl` and `theme` for the customer UI to consume.
+  - The `Customer Web` app was updated to render the `bannerUrl` in the header, and `imageUrl` next to the item name and price if an image exists.
+
+### 2026-10-08: Refactored API to Hexagonal Architecture (Chapter 7)
+- **Decision**: Refactored `apps/api` to use a Hexagonal Architecture (Ports and Adapters) pattern, separating routing, business logic, and database access. Added RULE 17 to `.ai/AGENTS.md` to enforce this pattern moving forward.
+- **Why**: The user explicitly requested to make the components pluggable and loosely coupled so that different implementations could be swapped in the future without changing the business logic.
+- **Implementation**:
+  - `core/ports/Repositories.ts`: Created interfaces representing the database operations needed by the application.
+  - `adapters/secondary/db/PrismaRepositories.ts`: Implemented the repository interfaces using Prisma. This is the only place where Prisma is imported.
+  - `core/use-cases/AppUseCases.ts`: Encapsulated all business logic within use cases that depend only on the repository interfaces.
+  - `index.ts`: Updated Fastify routes to instantiate the repositories, inject them into the use cases, and route requests to the use cases.
