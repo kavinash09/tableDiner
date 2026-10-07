@@ -1,0 +1,26 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Node
+node_modules/
+dist/
+build/
+.turbo/
+
+# Environment
+.env
+.env.local
+
+# Database
+packages/db/tablediner.db*
+packages/db/tablediner.db-journal
+
+# OS
+.DS_Store
+Thumbs.db
+

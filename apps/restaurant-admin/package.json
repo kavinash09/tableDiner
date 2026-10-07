@@ -1,0 +1,15 @@
+{
+  "name": "@tablediner/restaurant-admin",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'restaurant-admin dev'",
+    "build": "echo 'restaurant-admin build'"
+  },
+  "dependencies": {
+    "@tablediner/shared-types": "workspace:*",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}
+

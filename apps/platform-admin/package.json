@@ -1,0 +1,15 @@
+{
+  "name": "@tablediner/platform-admin",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'platform-admin dev'",
+    "build": "echo 'platform-admin build'"
+  },
+  "dependencies": {
+    "@tablediner/shared-types": "workspace:*",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}
+

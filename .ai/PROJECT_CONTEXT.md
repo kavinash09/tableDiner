@@ -1,15 +1,18 @@
-# PRODUCT CONTEXT
+# PROJECT CONTEXT
 
-Product: TableDiner
+**Product**: TableDiner
+**Goal**: Validate QR code-based ordering for restaurants in a real-world setting.
 
-Goal:
-Validate QR ordering for restaurants.
+## Core Value Proposition
+Replace physical menus and waitstaff order-taking with a frictionless digital experience. 
+Flow: Scan QR -> Browse Menu -> Place Order -> Kitchen Preps -> Payment -> Session Closed.
 
-Core Flow:
-Scan QR -> Browse Menu -> Place Order -> Kitchen -> Payment -> Session Closed
+## MVP Success Criteria
+A restaurant successfully receives and fulfills real, paid orders via the platform.
 
-MVP Success:
-Restaurant receives real paid orders.
-
-Out Of Scope:
-Feature Flags, Ad Engine, Reviews, Waitlist, Website Builder.
+## Strict Out of Scope (Do Not Implement)
+- Feature Flags
+- Ad Engine
+- Customer Reviews/Ratings
+- Waitlist Management
+- Restaurant Website Builder

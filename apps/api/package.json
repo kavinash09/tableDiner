@@ -1,0 +1,16 @@
+{
+  "name": "@tablediner/api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'api dev'",
+    "build": "echo 'api build'"
+  },
+  "dependencies": {
+    "@tablediner/db": "workspace:*",
+    "@tablediner/shared-types": "workspace:*",
+    "@tablediner/shared-validation": "workspace:*",
+    "fastify": "^4.24.3"
+  }
+}
+

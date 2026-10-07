@@ -1,0 +1,13 @@
+{
+  "name": "tablediner",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm -r run dev",
+    "build": "pnpm -r run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2"
+  }
+}
+

@@ -1,15 +1,12 @@
 # PROJECT STATE
 
-Phase: Pilot
+**Current Phase**: Pilot MVP
+**Overall Progress**: Chapter 2 Complete, moving to Chapter 3.
 
-Applications:
-- customer-web
-- restaurant-admin
-- platform-admin
-- api
-
-Database:
-SQLite + Prisma
-
-Core Modules:
-Restaurant, Table, QRCode, Session, Order, Payment, Menu.
+## Component Status Checklist
+- [x] **Database Schema**: (`packages/db`) Schema designed with Menu, Orders, Sessions.
+- [x] **Monorepo Wiring**: `pnpm` workspaces, `tsconfig.base.json`, and all `package.json` files are initialized and linked.
+- [ ] **API Backend**: (`apps/api`) Fastify setup pending.
+- [ ] **Customer Web**: (`apps/customer-web`) Pending.
+- [ ] **Restaurant Admin**: (`apps/restaurant-admin`) Pending.
+- [ ] **Platform Admin**: (`apps/platform-admin`) Pending.

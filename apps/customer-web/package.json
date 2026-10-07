@@ -1,0 +1,15 @@
+{
+  "name": "@tablediner/customer-web",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'customer-web dev'",
+    "build": "echo 'customer-web build'"
+  },
+  "dependencies": {
+    "@tablediner/shared-types": "workspace:*",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}
+
