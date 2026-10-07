@@ -1,0 +1,10 @@
+Tenant
+ Restaurant
+  Table
+   QRCode
+  Session
+   Order
+    OrderItem
+   Payment
+  MenuCategory
+  MenuItem

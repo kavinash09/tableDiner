@@ -1,0 +1,45 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "sqlite" url = "file:./tablediner.db" }
+
+model Tenant {
+ id String @id @default(cuid())
+ name String
+ restaurants Restaurant[]
+}
+
+model Restaurant {
+ id String @id @default(cuid())
+ tenantId String
+ name String
+ subscriptionTier String @default("PILOT")
+ tenant Tenant @relation(fields:[tenantId], references:[id])
+ tables Table[]
+}
+
+model Table {
+ id String @id @default(cuid())
+ name String
+ restaurantId String
+ restaurant Restaurant @relation(fields:[restaurantId], references:[id])
+}
+
+model MenuItem {
+ id String @id @default(cuid())
+ name String
+ price Float
+}
+
+model Session {
+ id String @id @default(cuid())
+ status String
+}
+
+model Order {
+ id String @id @default(cuid())
+ status String
+}
+
+model Payment {
+ id String @id @default(cuid())
+ status String
+}

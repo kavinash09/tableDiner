@@ -1,0 +1,1 @@
+See DOMAIN_MODEL.md
