@@ -2,44 +2,101 @@ generator client { provider = "prisma-client-js" }
 datasource db { provider = "sqlite" url = "file:./tablediner.db" }
 
 model Tenant {
- id String @id @default(cuid())
- name String
- restaurants Restaurant[]
+  id          String       @id @default(cuid())
+  name        String
+  restaurants Restaurant[]
 }
 
 model Restaurant {
- id String @id @default(cuid())
- tenantId String
- name String
- subscriptionTier String @default("PILOT")
- tenant Tenant @relation(fields:[tenantId], references:[id])
- tables Table[]
+  id               String   @id @default(cuid())
+  tenantId         String
+  name             String
+  subscriptionTier String   @default("PILOT")
+  
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  
+  tables         Table[]
+  sessions       Session[]
+  menuCategories MenuCategory[]
+  menuItems      MenuItem[]
 }
 
 model Table {
- id String @id @default(cuid())
- name String
- restaurantId String
- restaurant Restaurant @relation(fields:[restaurantId], references:[id])
+  id           String @id @default(cuid())
+  name         String
+  qrCode       String @unique @default(cuid())
+  
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  
+  sessions     Session[]
+}
+
+model MenuCategory {
+  id           String @id @default(cuid())
+  name         String
+  
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  
+  items        MenuItem[]
 }
 
 model MenuItem {
- id String @id @default(cuid())
- name String
- price Float
+  id           String @id @default(cuid())
+  name         String
+  description  String?
+  price        Float
+  
+  categoryId   String?
+  category     MenuCategory? @relation(fields: [categoryId], references: [id])
+  
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+
+  orderItems   OrderItem[]
 }
 
 model Session {
- id String @id @default(cuid())
- status String
+  id           String @id @default(cuid())
+  status       String @default("ACTIVE") // ACTIVE, CLOSED
+  
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  
+  tableId      String
+  table        Table @relation(fields: [tableId], references: [id])
+
+  orders       Order[]
+  payments     Payment[]
 }
 
 model Order {
- id String @id @default(cuid())
- status String
+  id           String @id @default(cuid())
+  status       String @default("RECEIVED") // RECEIVED, PREPARING, READY, SERVED
+  
+  sessionId    String
+  session      Session @relation(fields: [sessionId], references: [id])
+
+  items        OrderItem[]
+}
+
+model OrderItem {
+  id           String @id @default(cuid())
+  quantity     Int    @default(1)
+  
+  orderId      String
+  order        Order @relation(fields: [orderId], references: [id])
+  
+  menuItemId   String
+  menuItem     MenuItem @relation(fields: [menuItemId], references: [id])
 }
 
 model Payment {
- id String @id @default(cuid())
- status String
+  id           String @id @default(cuid())
+  status       String @default("PENDING") // PENDING, COMPLETED, FAILED
+  amount       Float  @default(0)
+  
+  sessionId    String
+  session      Session @relation(fields: [sessionId], references: [id])
 }
