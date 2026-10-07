@@ -134,6 +134,16 @@ export class PrismaRestaurantRepository implements IRestaurantRepository {
       data: { bannerUrl },
     });
   }
+
+  async createCategory(restaurantId: string, name: string) {
+    return prisma.menuCategory.create({
+      data: { name, restaurantId },
+    }) as any;
+  }
+
+  async deleteCategory(categoryId: string) {
+    await prisma.menuCategory.delete({ where: { id: categoryId } });
+  }
 }
 
 export class PrismaMenuItemRepository implements IMenuItemRepository {
@@ -142,5 +152,22 @@ export class PrismaMenuItemRepository implements IMenuItemRepository {
       where: { id },
       data: { imageUrl },
     });
+  }
+
+  async createItem(restaurantId: string, data: any) {
+    return prisma.menuItem.create({
+      data: { ...data, restaurantId },
+    }) as any;
+  }
+
+  async updateItem(id: string, data: any) {
+    return prisma.menuItem.update({
+      where: { id },
+      data,
+    }) as any;
+  }
+
+  async deleteItem(id: string) {
+    await prisma.menuItem.delete({ where: { id } });
   }
 }

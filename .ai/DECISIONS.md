@@ -102,3 +102,11 @@
   - `adapters/secondary/db/PrismaRepositories.ts`: Implemented the repository interfaces using Prisma. This is the only place where Prisma is imported.
   - `core/use-cases/AppUseCases.ts`: Encapsulated all business logic within use cases that depend only on the repository interfaces.
   - `index.ts`: Updated Fastify routes to instantiate the repositories, inject them into the use cases, and route requests to the use cases.
+
+### 2026-10-08: Menu Items CRUD Operations (Chapter 7)
+- **Decision**: Added full CRUD operations (Create, Update, Delete) for Menu Categories and Menu Items to the API and Restaurant Admin dashboard.
+- **Why**: The user requested that restaurant admins be able to edit food item names and manage other CRUD settings directly from the UI.
+- **Implementation**:
+  - `shared-validation`: Added Zod schemas for `CreateCategory`, `CreateMenuItem`, and `UpdateMenuItem`.
+  - `apps/api`: Extended `Repositories`, `PrismaRepositories`, and `AppUseCases` to handle creation, updating, and deletion of both categories and items. Exposed these via 5 new Fastify routes.
+  - `apps/restaurant-admin`: Created a dedicated `<MenuManager />` component to handle category/item creation, inline editing, and deletion with confirmation prompts, replacing the static list.

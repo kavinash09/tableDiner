@@ -239,6 +239,73 @@ app.post('/menu-item/:id/image', async (request, reply) => {
   }
 });
 
+// --- MENU CRUD ROUTES ---
+import { CreateCategorySchema, CreateMenuItemSchema, UpdateMenuItemSchema } from '@tablediner/shared-validation';
+
+app.post('/restaurant/:id/categories', async (request, reply) => {
+  const { id } = request.params as { id: string };
+  const parsed = CreateCategorySchema.safeParse(request.body);
+  if (!parsed.success) return reply.status(400).send({ error: parsed.error.errors[0]?.message });
+  
+  try {
+    const category = await appUseCases.createMenuCategory(id, parsed.data.name);
+    return category;
+  } catch (err) {
+    app.log.error(err);
+    return reply.status(500).send({ error: 'Failed to create category' });
+  }
+});
+
+app.delete('/category/:id', async (request, reply) => {
+  const { id } = request.params as { id: string };
+  try {
+    await appUseCases.deleteMenuCategory(id);
+    return { success: true };
+  } catch (err) {
+    app.log.error(err);
+    return reply.status(500).send({ error: 'Failed to delete category' });
+  }
+});
+
+app.post('/restaurant/:id/items', async (request, reply) => {
+  const { id } = request.params as { id: string };
+  const parsed = CreateMenuItemSchema.safeParse(request.body);
+  if (!parsed.success) return reply.status(400).send({ error: parsed.error.errors[0]?.message });
+  
+  try {
+    const item = await appUseCases.createMenuItem(id, parsed.data);
+    return item;
+  } catch (err) {
+    app.log.error(err);
+    return reply.status(500).send({ error: 'Failed to create menu item' });
+  }
+});
+
+app.patch('/menu-item/:id', async (request, reply) => {
+  const { id } = request.params as { id: string };
+  const parsed = UpdateMenuItemSchema.safeParse(request.body);
+  if (!parsed.success) return reply.status(400).send({ error: parsed.error.errors[0]?.message });
+  
+  try {
+    const item = await appUseCases.updateMenuItem(id, parsed.data);
+    return item;
+  } catch (err) {
+    app.log.error(err);
+    return reply.status(500).send({ error: 'Failed to update menu item' });
+  }
+});
+
+app.delete('/menu-item/:id', async (request, reply) => {
+  const { id } = request.params as { id: string };
+  try {
+    await appUseCases.deleteMenuItem(id);
+    return { success: true };
+  } catch (err) {
+    app.log.error(err);
+    return reply.status(500).send({ error: 'Failed to delete menu item' });
+  }
+});
+
 const start = async () => {
   try {
     await app.listen({ port: 3001, host: '0.0.0.0' });

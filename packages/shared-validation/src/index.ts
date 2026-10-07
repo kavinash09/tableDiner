@@ -42,3 +42,16 @@ export const UpdateRestaurantSettingsSchema = z.object({
 });
 
 export type UpdateRestaurantSettingsPayload = z.infer<typeof UpdateRestaurantSettingsSchema>;
+
+export const CreateCategorySchema = z.object({
+  name: z.string().min(1, 'Category name is required'),
+});
+
+export const CreateMenuItemSchema = z.object({
+  name: z.string().min(1, 'Item name is required'),
+  description: z.string().optional(),
+  price: z.number().min(0, 'Price must be greater than or equal to 0'),
+  categoryId: z.string().nullable().optional(),
+});
+
+export const UpdateMenuItemSchema = CreateMenuItemSchema.partial();

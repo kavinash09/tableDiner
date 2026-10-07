@@ -112,5 +112,25 @@ export class AppUseCases {
   async updateMenuItemImage(id: string, imageUrl: string) {
     return this.menuItemRepo.updateImage(id, imageUrl);
   }
+
+  async createMenuCategory(restaurantId: string, name: string) {
+    return this.restaurantRepo.createCategory(restaurantId, name);
+  }
+
+  async deleteMenuCategory(categoryId: string) {
+    return this.restaurantRepo.deleteCategory(categoryId);
+  }
+
+  async createMenuItem(restaurantId: string, data: any) {
+    return this.menuItemRepo.createItem(restaurantId, data);
+  }
+
+  async updateMenuItem(id: string, data: any) {
+    return this.menuItemRepo.updateItem(id, data);
+  }
+
+  async deleteMenuItem(id: string) {
+    return this.menuItemRepo.deleteItem(id);
+  }
 }
 

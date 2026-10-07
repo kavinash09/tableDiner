@@ -332,3 +332,10 @@ apps/api/src/
       db/        # Prisma repository implementations
   index.ts       # Dependency injection & bootstrap
 ```
+
+---
+
+## 🚫 RULE 18: No Standalone Deployment Configuration Files
+
+Do NOT create standalone deployment configuration files like `Dockerfile`, `.dockerignore`, or `vercel.json` anywhere in the repository. 
+All deployment instructions and configurations should be provided inline within the `README.md` file so the user can implement them manually if they choose to.

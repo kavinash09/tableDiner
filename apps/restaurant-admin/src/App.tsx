@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { KitchenOrdersResponse, Restaurant, Table, MenuCategory, MenuItem } from '@tablediner/shared-types';
 import { QRCodeSVG } from 'qrcode.react';
+import { MenuManager } from './components/MenuManager';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
@@ -300,59 +301,7 @@ export default function App() {
       )}
 
       {activeTab === 'MENU' && restaurant && (
-        <div className="max-w-4xl mx-auto space-y-8">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-200">
-            <h2 className="text-xl font-bold text-forest-900 mb-6">Menu Manager</h2>
-            
-            <div className="space-y-8">
-              {restaurant.menuCategories.map(category => (
-                <div key={category.id} className="border border-zinc-200 rounded-xl overflow-hidden">
-                  <div className="bg-zinc-50 px-4 py-3 border-b border-zinc-200">
-                    <h3 className="font-bold text-forest-900">{category.name}</h3>
-                  </div>
-                  <div className="divide-y divide-zinc-100">
-                    {category.items.map(item => (
-                      <div key={item.id} className="p-4 flex items-center justify-between hover:bg-zinc-50 transition-colors">
-                        <div className="flex items-center gap-4">
-                          {item.imageUrl ? (
-                            <img src={item.imageUrl.startsWith('http') ? item.imageUrl : `${API_URL}${item.imageUrl}`} alt={item.name} className="h-16 w-16 object-cover rounded-lg border border-zinc-200" />
-                          ) : (
-                            <div className="h-16 w-16 bg-zinc-100 rounded-lg border border-zinc-200 flex items-center justify-center text-zinc-400 text-xs text-center p-1">No Image</div>
-                          )}
-                          <div>
-                            <div className="font-bold text-zinc-900">{item.name}</div>
-                            <div className="text-sm text-zinc-500">₹{item.price.toFixed(2)}</div>
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <input 
-                            type="file" 
-                            accept="image/*"
-                            onChange={async (e) => {
-                              const file = e.target.files?.[0];
-                              if (!file) return;
-                              const formData = new FormData();
-                              formData.append('file', file);
-                              try {
-                                const res = await fetch(`${API_URL}/menu-item/${item.id}/image`, {
-                                  method: 'POST',
-                                  body: formData
-                                });
-                                if (res.ok) fetchRestaurant();
-                              } catch(err) { console.error(err) }
-                            }}
-                            className="block w-full text-sm text-zinc-500 file:mr-0 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <MenuManager restaurant={restaurant} fetchRestaurant={fetchRestaurant} />
       )}
     </div>
   );

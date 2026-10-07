@@ -83,3 +83,66 @@ VITE_API_URL=http://localhost:3001
 ```
 
 Change `VITE_API_URL` to point to a different API host (e.g., staging) without touching source code.
+
+
+---
+
+## 🚢 Deployment (Docker & Vercel)
+
+If you wish to deploy the application, here are the configurations you can use.
+
+### Backend (apps/api)
+Create a `Dockerfile` at the root of the repository to containerize the Fastify API:
+
+```dockerfile
+# Dockerfile
+FROM node:18-alpine AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+COPY . /app
+WORKDIR /app
+
+FROM base AS prod-deps
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-lockfile
+
+FROM base AS build
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+RUN pnpm run build
+
+FROM base
+COPY --from=prod-deps /app/node_modules /app/node_modules
+COPY --from=build /app/apps/api/dist /app/apps/api/dist
+EXPOSE 3001
+CMD [ "pnpm", "--filter", "api", "start" ]
+```
+
+```bash
+# Build the Docker image
+docker build -t tablediner-api .
+
+# Run the container
+docker run -p 3001:3001 tablediner-api
+```
+
+### Frontends (Vercel)
+To deploy the React applications (`customer-web`, `restaurant-admin`, `platform-admin`) to Vercel, you'll need to rewrite all routing to `index.html` for client-side routing to work.
+
+Create a `vercel.json` file in the specific app directory (e.g., `apps/customer-web/vercel.json`):
+
+```json
+{
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+```
+
+**To deploy a frontend:**
+1. Import the repository in Vercel.
+2. Set the "Root Directory" to the specific app (e.g., `apps/customer-web`).
+3. Vercel will automatically detect Vite and configure the build settings.
+4. Add the `VITE_API_URL` environment variable in Vercel pointing to your deployed Docker API URL.

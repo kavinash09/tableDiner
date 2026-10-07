@@ -34,8 +34,13 @@ export interface IRestaurantRepository {
   getFirstRestaurant(): Promise<any>;
   updateSettings(id: string, theme: string, qrTemplate: string): Promise<Restaurant>;
   updateBanner(id: string, bannerUrl: string): Promise<void>;
+  createCategory(restaurantId: string, name: string): Promise<MenuCategory>;
+  deleteCategory(categoryId: string): Promise<void>;
 }
 
 export interface IMenuItemRepository {
   updateImage(id: string, imageUrl: string): Promise<void>;
+  createItem(restaurantId: string, data: any): Promise<MenuItem>;
+  updateItem(id: string, data: any): Promise<MenuItem>;
+  deleteItem(id: string): Promise<void>;
 }
