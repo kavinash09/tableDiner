@@ -390,3 +390,14 @@ Move away from Anaemic Domain Models. The core domain layer MUST encapsulate its
 - **Repositories Map to Domain Entities**: Repositories must retrieve raw Prisma DTOs and immediately map them into Rich Domain Entity classes (e.g., `new TableSession(data)`, `new Order(data)`).
 - **Behavior Lives in the Class**: Use Cases must NOT directly manipulate raw database objects. Methods for state transition, validation, and domain rules must reside on the Entity class itself (e.g., `tableSession.close()`, `order.markServed()`).
 - **Encapsulation**: State changes to an entity must only occur through its defined methods, ensuring invariants and business rules are always enforced.
+
+---
+
+## 🧪 RULE 22: Mandatory Unit & Integration Testing
+
+Application quality is non-negotiable.
+
+- **Unit Tests**: Every core business logic change or new use case MUST be accompanied by unit tests. If no testing framework exists, you must introduce one (e.g., `vitest`) and write tests before declaring a feature complete.
+- **Integration Tests**: Critical boundaries (e.g., Fastify routes, database adapters) must have integration tests to ensure the system works as a whole.
+- **Coverage**: Aim for high test coverage on pure domain logic (Use Cases and Entities).
+- **Rule Enforcement**: Refuse any prompt to bypass testing for "speed." Speed without quality is technical debt.

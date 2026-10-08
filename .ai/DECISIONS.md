@@ -126,3 +126,77 @@
 ### 2026-10-08T23:52:30: Introduced Strict OOP Domain Entities
 - **Decision**: Created Rich Domain Entities (`TableSession.ts`, `Order.ts`) in the core domain layer, moving away from manipulating raw JSON/Prisma DTOs in the UseCases layer.
 - **Why**: The Hexagonal Architecture previously implemented had an "Anaemic Domain Model". Business logic (like checking payment totals or advancing order states) must be encapsulated within the Domain Entities themselves for true OOP adherence.
+
+### 2026-10-09T00:03:00: Schema Architecture Metrics & Analysis Fixes
+- **Decision**: Added Subscriptions and TenantAuditLogs models, expanded Session with financial breakdowns (subtotal, taxAmount, tipAmount, discountAmount) and `guestCount`, added `CANCELLED` tracking to Orders, and introduced Database Indexes across the schema.
+- **Why**: The schema previously could not track real-world SaaS financial metrics (MRR), failed to provide ARPU (spend per head), couldn't calculate net revenue vs gross, and lacked an audit trail for Tenant lifecycle decommissioning.
+- **Trade-off accepted**: Added complexity to the `Session` domain object (which will now have to manage these breakdowns), but necessary for MVP real-world reporting viability.
+
+### 2026-10-09T00:06:00: Introduce BaseEntity for Domain Layer
+- **Decision**: Created `BaseEntity.ts` and `ArchivableEntity.ts` inside `apps/api/src/core/domain/`. Refactored `Order` and `TableSession` to extend `BaseEntity` and include the newly added financial breakdown properties.
+- **Why**: Pure OOP requires domain objects to track standard lifecycle properties (`createdAt`, `updatedAt`) natively. `ArchivableEntity` standardizes the soft-delete mechanism across all future domain classes.
+- **Trade-off accepted**: Constructor signatures for Domain objects are now larger and require Prisma mappers to inject timestamp properties.
+
+### 2026-10-09T00:19:00: Applied Analytics Spec v1 to Database
+- **Decision**: Updated the Prisma Schema to fully support the Analytics Spec v1. Added `businessDayCutoffHour`, `businessDate`, and `tenantId` (denormalized) to operational models. Also added `refundedAmount`, `isVoided`, and reopened session auditing.
+- **Why**: To support post-midnight reporting, retroactive refunds, and cross-tenant GMV aggregation without expensive joins.
+- **Trade-off accepted**: Minor data duplication (denormalizing `tenantId` on Orders/Sessions) in exchange for massive read-performance gains on Platform Admin dashboards.
+
+### 2026-10-09: Platform Admin Dashboard Layout
+- **Decision**: Implemented a simple state-based tab switcher (`activeTab: 'tenants' | 'analytics'`) in `apps/platform-admin/src/App.tsx`.
+- **Why**: Avoids introducing `react-router-dom` or other routing dependencies just for two views, keeping the MVP lightweight.
+- **Trade-off accepted**: No deep linking to the analytics tab via URL.
+- **Reversal trigger**: If we add more than 3-4 distinct sections to the platform admin, we should migrate to a proper router.
+
+### 2026-10-09: Testing Framework Setup & Enforcement
+- **Decision**: Added `vitest` to `apps/api` and enforced mandatory unit testing in `AI_RULES.md`.
+- **Why**: The user noticed regressions (415 error on login) and explicitly required strict unit testing for verification purposes.
+- **Trade-off accepted**: Slight increase in development time per feature, but massive increase in stability.
+### 2026-10-09: EOD Audit Report Implementation
+- **Decision**: Added `GetEODAuditReportUseCase` utilizing a manual CSV string generator (`CsvExportAdapter`) rather than importing a large CSV library.
+- **Why**: Keeps the dependency footprint small and execution fast for a flat dataset. We handle simple escaping manually.
+- **Trade-off accepted**: Complex nested data structures in the future might require a dedicated CSV library, but current EOD format is purely tabular.
+- **Reversal trigger**: If we add multiple exports with complex nested data or need streaming CSVs, we should switch to `fast-csv`.
+
+### 2026-10-09: Fix SPA Auth.js Redirect Issue in Admin Apps
+- **Decision**: Used `redirect: 'manual'` in fetch calls to `callback/credentials` and manually handled `opaqueredirect` and `302` response statuses in `AuthContext.tsx`.
+- **Why**: Auth.js returns a 302 redirect after successful login. Using standard fetch makes the browser follow the redirect automatically to the backend base URL (which might 404 or return HTML), breaking `res.json()`.
+- **Trade-off accepted**: Manual status checking introduces slightly more verbose fetch logic, but correctly isolates backend auth redirects from frontend SPAs.
+### 2026-10-08: Resolved Critical Architectural Audit Findings (Chapter X)
+- **Decision**: Implemented `tenantId` and `businessDate` injection in `Session`, `Order`, and `Payment` creation. Fixed `Session` status to default to `OPEN`. Transitioned `deleteCategory` and `deleteItem` to use soft deletes (`deletedAt`). Refactored `getBill()` to calculate totals based on the historical `unitPrice` snapshot in `OrderItem`.
+- **Why**: These were identified as CRITICAL and HIGH risk vulnerabilities in the system audit. The missing fields were breaking Analytics (which relies on `tenantId` and `businessDate`). The `ACTIVE` session status was invalid according to the Prisma schema. Hard deletes were violating AI Rule 19 and destroying historical data. Using live prices in `getBill()` instead of snapshots meant customers could be over/under-charged if prices changed during a session.
+- **Trade-off accepted**: `getCurrentRestaurant()` is still temporarily used in the `kitchen/orders` route to supply `restaurantId` until full authentication guard injection is completed.
+- **Reversal trigger**: Never reverse. Soft deletes and tenant-isolation are foundational invariants.
+
+### 2026-10-09: Remediated Issue 1 - Session Closure Timestamps & Financial Snapshots (P0)
+- **Decision**: Implemented atomic persistence of `closedAt`, `subtotal`, `taxAmount`, `tipAmount`, `discountAmount`, and `totalAmount` upon session checkout in `PrismaPaymentRepository.processCheckout`. Aligned `TableSession` domain entity status enum to `'OPEN' | 'CLOSED' | 'REOPENED' | 'FINALIZED'` and fixed `PrismaTableRepository.findByQrCode` to look up `OPEN` sessions.
+- **Why**: `closedAt` was never being captured and financial totals remained at default `0.0`. This broke all downstream analytics (`occupancyPercent`, `avgTableTurnTimeMinutes`, `grossRevenue`, `netRevenue`, `avgTicketSize`, and platform GMV).
+- **Trade-off accepted**: For MVP mock payments, tax, tip, and discount are set to 0.0 with full subtotal mapped to `totalAmount`.
+- **Reversal trigger**: Never reverse. Immutable financial snapshotting on session close is an essential domain invariant.
+
+### 2026-10-09: Remediated Issue 2 - Order Lifecycle Timestamps Persistence (P0)
+- **Decision**: Implemented strict domain state machine validation and lifecycle timestamp persistence (`acceptedAt`, `readyAt`, `servedAt`, `cancelledAt`) in `PrismaOrderRepository.updateOrderStatus`. State skipping (e.g. `RECEIVED` -> `SERVED`) is prohibited, and terminal states (`SERVED`, `CANCELLED`, `REJECTED`) are strictly protected against invalid mutations.
+- **Why**: Kitchen SLA metrics (`avgKitchenPrepTimeMinutes`, `avgServiceTimeMinutes`, `avgFulfillmentTimeMinutes`) previously returned 0.0 because timestamps were never captured upon status changes. Skipping states corrupted the operational SLA funnel.
+- **Trade-off accepted**: Route returns HTTP 400 with a descriptive error message when invalid state transitions are attempted by clients.
+- **Reversal trigger**: Never reverse. Strict state machines are vital for SLA metrics and kitchen workflow integrity.
+
+### 2026-10-09: Remediated Issue 4 - Historical Session Data Backfill (P0)
+- **Decision**: Implemented and executed an idempotent, non-destructive backfill procedure in `packages/db/scripts/backfill-sessions.ts`. It safely recovers missing `closedAt` timestamps from associated `Payment.createdAt` records and recovers `subtotal` and `totalAmount` from unvoided `OrderItem` snapshots.
+- **Why**: Protects historical analytics, occupancy rates, and financial reports from corruption caused by legacy records created prior to Issue 1's fix.
+- **Trade-off accepted**: Only applies to sessions where `closedAt` is null or `totalAmount` is 0; healthy sessions are strictly untouched.
+- **Reversal trigger**: Never reverse. Historical consistency is a permanent guarantee.
+### 2026-10-09: Remediated Issue 3 - Analytics Query In-Memory Performance Optimization (P1)
+- **Decision**: Replaced all `findMany` queries and JavaScript in-memory array iteration loops in `PrismaRestaurantAnalyticsRepository.getUtilizationMetrics` and `getSlaMetrics` with database-level SQL aggregations using Prisma's `$queryRaw`.
+- **Why**: Previously, calculating `avgTableTurnTimeMinutes`, `occupancyPercent`, and SLA stage metrics (`avgKitchenPrepTimeMinutes`, `avgServiceTimeMinutes`, `avgFulfillmentTimeMinutes`) fetched full table and order records into Node.js heap memory, instantiating `Date` objects and looping in JavaScript. At restaurant scale (thousands of sessions/orders per day), this introduces massive memory allocation spikes, GC pressure, and risks Node.js heap exhaustion (OOM).
+- **Trade-off accepted**: Raw SQL queries leverage SQLite's native integer timestamp difference calculations directly in C/database layer while keeping the exact repository port interface and return signatures intact.
+- **Reversal trigger**: If migrating to PostgreSQL in future production, syntax can adapt to native date/interval functions like `EXTRACT(EPOCH FROM (closedAt - createdAt)) / 60.0`.
+### 2026-10-09: Designed Event-Driven Analytics Platform & Semantic Query Engine
+- **Decision**: Designed the complete architectural evolution of TableDiner from a report-centric, OLTP-coupled model to an asynchronous, event-driven analytics platform with an append-only Event Store (`AnalyticsEvent`), Transactional Outbox pattern, CQRS materialized read projections, and a Universal Semantic Query DSL.
+- **Why**: Currently, analytics queries run synchronously against live operational database tables (`Session`, `Order`, `Payment`). As dining transaction volume scales, this creates lock contention, memory bloat, and operational latency spikes. Furthermore, every new metric or custom report currently requires schema changes and backend code deployments. Moving to an event-driven architecture decouples the operational core, guarantees historical immutability, achieves sub-5ms dashboard lookups, and enables self-serve dynamic analytics slicing.
+- **Trade-off accepted**: Introduces an asynchronous event processing pipeline and materialized projection tables, adding eventual consistency (sub-second latency between operational checkout and projection update) instead of synchronous transactional reads.
+- **Reversal trigger**: If operational transaction throughput remains under 50 transactions per day where raw SQL queries have zero performance overhead, the legacy queries can remain active via the backward-compatible fallback adapter.
+### 2026-10-09: Adopted PostgreSQL Database Architecture (Docker Dev / Managed RDS Prod)
+- **Decision**: Adopted PostgreSQL 16 as the standardized relational database across the platform, replacing SQLite. For local development, PostgreSQL runs in a Docker container with host volume mapping (`.postgres_data`). For production, managed PostgreSQL (AWS RDS PostgreSQL, Supabase, or Cloud SQL) will be utilized.
+- **Why**: SQLite is inherently single-writer, creating severe lock contention risks during concurrent dining checkout writes and outbox event polling. PostgreSQL provides Multi-Version Concurrency Control (MVCC) with row-level locking, non-blocking `FOR UPDATE SKIP LOCKED` for outbox event workers, native binary `JSONB` for event payloads, and native interval arithmetic (`EXTRACT(EPOCH FROM ...)`). Adopting PostgreSQL locally via Docker ensures 100% SQL dialect and behavioral parity between development and production.
+- **Trade-off accepted**: Requires Docker to run PostgreSQL locally during development. In accordance with Rule 18, all container deployment instructions are documented inline in `README.md` without standalone deployment files.
+- **Reversal trigger**: Never reverse. Full ACID concurrency and native JSONB are mandatory prerequisites for multi-tenant SaaS scaling.

@@ -14,18 +14,18 @@ export interface ITableRepository {
 }
 
 export interface ISessionRepository {
-  createActiveSession(restaurantId: string, tableId: string): Promise<Session>;
+  createActiveSession(tenantId: string, restaurantId: string, tableId: string, businessDate: string): Promise<Session>;
   updateSessionStatus(sessionId: string, status: 'CLOSED'): Promise<Session>;
 }
 
 export interface IOrderRepository {
-  createOrder(sessionId: string, items: { menuItemId: string; quantity: number; notes?: string }[]): Promise<Order>;
-  getActiveOrders(): Promise<any[]>;
-  updateOrderStatus(orderId: string, status: string): Promise<Order>;
+  createOrder(tenantId: string, sessionId: string, businessDate: string, items: { menuItemId: string; quantity: number; notes?: string; unitPrice: number; lineTotal: number }[]): Promise<Order>;
+  getActiveOrders(restaurantId: string): Promise<any[]>;
+  updateOrderStatus(orderId: string, status: string, reason?: string): Promise<Order>;
 }
 
 export interface IPaymentRepository {
-  processCheckout(sessionId: string, amount: number): Promise<void>;
+  processCheckout(tenantId: string, sessionId: string, amount: number): Promise<void>;
 }
 
 export interface IRestaurantRepository {

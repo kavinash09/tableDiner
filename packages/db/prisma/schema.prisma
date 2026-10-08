@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./tablediner.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Tenant {
@@ -13,23 +13,59 @@ model Tenant {
   onboardingStatus String       @default("ONBOARDING") // LEAD, ONBOARDING, ACTIVE, SUSPENDED, DECOMMISSIONED
   isActive         Boolean      @default(true)
   
-  restaurants Restaurant[]
-  users       User[]
+  restaurants    Restaurant[]
+  users          User[]
+  subscriptions  Subscription[]
+  auditLogs      TenantAuditLog[]
+  
+  // Denormalized relations for global metrics (Platform Admin)
+  sessions       Session[]
+  orders         Order[]
+  orderItems     OrderItem[]
+  payments       Payment[]
   
   deletedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
+model Subscription {
+  id              String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  billingCycle    String   @default("MONTHLY") // MONTHLY, YEARLY
+  mrr             Float    @default(0) // Monthly Recurring Revenue
+  nextBillingDate DateTime?
+  status          String   @default("ACTIVE") // ACTIVE, PAST_DUE, CANCELED
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model TenantAuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  actorId   String?  // The user who made the change
+  action    String   // e.g., "STATUS_CHANGED_TO_ACTIVE"
+  
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+}
+
 model Restaurant {
-  id               String   @id @default(cuid())
-  tenantId         String
-  name             String
-  subscriptionTier String   @default("PILOT")
-  theme            String   @default("FOREST")
-  qrTemplate       String   @default("MINIMAL")
-  bannerUrl        String?
-  isActive         Boolean  @default(true)
+  id                    String   @id @default(cuid())
+  tenantId              String
+  name                  String
+  subscriptionTier      String   @default("PILOT")
+  theme                 String   @default("FOREST")
+  qrTemplate            String   @default("MINIMAL")
+  bannerUrl             String?
+  businessDayCutoffHour Int      @default(4) // e.g., 4 = 04:00 AM cutoff
+  isActive              Boolean  @default(true)
   
   tenant Tenant @relation(fields: [tenantId], references: [id])
   
@@ -41,6 +77,8 @@ model Restaurant {
   deletedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
 }
 
 model Table {
@@ -57,6 +95,8 @@ model Table {
   deletedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([restaurantId])
 }
 
 model MenuCategory {
@@ -72,6 +112,8 @@ model MenuCategory {
   deletedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([restaurantId])
 }
 
 model MenuItem {
@@ -93,49 +135,111 @@ model MenuItem {
   deletedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([restaurantId])
+  @@index([categoryId])
 }
 
 model Session {
-  id           String @id @default(cuid())
-  status       String @default("ACTIVE") // ACTIVE, CLOSED
-  totalAmount  Float?
+  id             String @id @default(cuid())
   
-  restaurantId String
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  // Denormalized tenant for cross-restaurant platform metrics
+  tenantId       String
+  tenant         Tenant @relation(fields: [tenantId], references: [id])
   
-  tableId      String
-  table        Table @relation(fields: [tableId], references: [id])
-
+  restaurantId   String
+  restaurant     Restaurant @relation(fields: [restaurantId], references: [id])
+  
+  tableId        String
+  table          Table @relation(fields: [tableId], references: [id])
+  
+  status         String @default("OPEN") // OPEN, CLOSED, REOPENED, FINALIZED
+  businessDate   String? // Format: YYYY-MM-DD based on businessDayCutoffHour
+  guestCount     Int    @default(1)
+  
+  // Financial breakdown
+  subtotal       Float? @default(0)
+  taxAmount      Float? @default(0)
+  discountAmount Float? @default(0)
+  tipAmount      Float? @default(0)
+  refundedAmount Float? @default(0) // Track retro-active refunds
+  totalAmount    Float? @default(0)
+  
   orders       Order[]
   payments     Payment[]
   
-  closedAt  DateTime?
+  // Audit Timestamps
+  closedAt     DateTime?
+  reopenedAt   DateTime?
+  reopenedBy   String?
+  reopenReason String?
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Multi-tenant analytical indexes
+  @@index([tenantId, businessDate])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, closedAt])
+  @@index([tenantId, status])
+  
+  // Scoped indexes
+  @@index([restaurantId, businessDate])
+  @@index([businessDate])
 }
 
 model Order {
-  id           String @id @default(cuid())
-  status       String @default("RECEIVED") // RECEIVED, PREPARING, READY, SERVED
+  id                 String @id @default(cuid())
   
-  sessionId    String
-  session      Session @relation(fields: [sessionId], references: [id])
+  // Denormalized tenant for global SLA metrics
+  tenantId           String
+  tenant             Tenant @relation(fields: [tenantId], references: [id])
+  
+  status             String @default("RECEIVED") // RECEIVED, PREPARING, READY, SERVED, CANCELLED, REJECTED
+  businessDate       String? 
+  
+  sessionId          String
+  session            Session @relation(fields: [sessionId], references: [id])
 
-  items        OrderItem[]
+  items              OrderItem[]
   
-  acceptedAt DateTime?
-  readyAt    DateTime?
-  servedAt   DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  acceptedAt         DateTime?
+  readyAt            DateTime?
+  servedAt           DateTime?
+  cancelledAt        DateTime?
+  cancellationReason String?
+  
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // SLA Analytical Indexes
+  @@index([tenantId, acceptedAt])
+  @@index([tenantId, readyAt])
+  @@index([tenantId, servedAt])
+  @@index([tenantId, status])
+  
+  // Relation indexes
+  @@index([sessionId])
+  @@index([createdAt])
 }
 
 model OrderItem {
   id           String @id @default(cuid())
+  
+  // Denormalized tenant
+  tenantId     String
+  tenant       Tenant @relation(fields: [tenantId], references: [id])
+  
   quantity     Int    @default(1)
   notes        String?
-  unitPrice    Float  @default(0) // snapshot of price at order time
-  lineTotal    Float  @default(0) // quantity * unitPrice
+  unitPrice    Float  @default(0)
+  lineTotal    Float  @default(0)
+  
+  // Audit for Voids
+  isVoided     Boolean @default(false)
+  voidReason   String?
+  voidedAt     DateTime?
+  voidedBy     String?
   
   orderId      String
   order        Order @relation(fields: [orderId], references: [id])
@@ -145,13 +249,21 @@ model OrderItem {
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([tenantId, menuItemId])
+  @@index([orderId])
 }
 
 model Payment {
   id               String  @id @default(cuid())
+  
+  // Denormalized tenant
+  tenantId         String
+  tenant           Tenant @relation(fields: [tenantId], references: [id])
+  
   status           String  @default("PENDING") // PENDING, COMPLETED, FAILED
   amount           Float   @default(0)
-  providerId       String? // e.g. stripe_tx_123
+  providerId       String? 
   method           String? // CASH, UPI, CARD
   
   sessionId    String
@@ -159,6 +271,10 @@ model Payment {
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([tenantId, method])
+  @@index([sessionId])
+  @@index([createdAt])
 }
 
 // --- NextAuth (Auth.js) Models ---
@@ -169,7 +285,7 @@ model User {
   email         String?   @unique
   emailVerified DateTime?
   image         String?
-  password      String?   // Added for Credentials provider
+  password      String?   
   
   tenantId      String?
   tenant        Tenant?   @relation(fields: [tenantId], references: [id])
@@ -178,6 +294,8 @@ model User {
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  @@index([tenantId])
 }
 
 model Account {
@@ -197,6 +315,8 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

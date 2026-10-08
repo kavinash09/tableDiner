@@ -20,7 +20,7 @@ export class PrismaTableRepository implements ITableRepository {
           },
         },
         sessions: { 
-          where: { status: 'ACTIVE' }, 
+          where: { status: 'OPEN' }, 
           take: 1,
           include: {
             orders: { include: { items: { include: { menuItem: true } } } },
@@ -32,9 +32,9 @@ export class PrismaTableRepository implements ITableRepository {
 }
 
 export class PrismaSessionRepository implements ISessionRepository {
-  async createActiveSession(restaurantId: string, tableId: string) {
+  async createActiveSession(tenantId: string, restaurantId: string, tableId: string, businessDate: string) {
     return prisma.session.create({
-      data: { status: 'ACTIVE', restaurantId, tableId },
+      data: { status: 'OPEN', tenantId, restaurantId, tableId, businessDate },
     }) as any;
   }
   
@@ -47,22 +47,27 @@ export class PrismaSessionRepository implements ISessionRepository {
 }
 
 export class PrismaOrderRepository implements IOrderRepository {
-  async createOrder(sessionId: string, items: { menuItemId: string; quantity: number; notes?: string }[]) {
+  async createOrder(tenantId: string, sessionId: string, businessDate: string, items: { menuItemId: string; quantity: number; notes?: string; unitPrice: number; lineTotal: number }[]) {
     return prisma.order.create({
       data: {
+        tenantId,
         sessionId,
+        businessDate,
         status: 'RECEIVED',
         items: {
-          create: items.map(item => ({ menuItemId: item.menuItemId, quantity: item.quantity, notes: item.notes || null, unitPrice: (item as any).unitPrice, lineTotal: (item as any).lineTotal })),
+          create: items.map(item => ({ tenantId, menuItemId: item.menuItemId, quantity: item.quantity, notes: item.notes || null, unitPrice: item.unitPrice, lineTotal: item.lineTotal })),
         },
       },
       include: { items: true },
     }) as any;
   }
 
-  async getActiveOrders() {
+  async getActiveOrders(restaurantId: string) {
     return prisma.order.findMany({
-      where: { status: { in: ['RECEIVED', 'PREPARING', 'READY'] } },
+      where: { 
+        status: { in: ['RECEIVED', 'PREPARING', 'READY'] },
+        session: { restaurantId }
+      },
       include: {
         items: { include: { menuItem: true } },
         session: { include: { table: true } },
@@ -71,20 +76,114 @@ export class PrismaOrderRepository implements IOrderRepository {
     });
   }
 
-  async updateOrderStatus(orderId: string, status: string) {
+  async updateOrderStatus(orderId: string, status: string, reason?: string) {
+    const existing = await prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!existing) {
+      throw new Error(`Order ${orderId} not found.`);
+    }
+
+    // Terminal state protection
+    if (existing.status === 'SERVED') {
+      throw new Error('Cannot modify or cancel an order that has already been served.');
+    }
+    if (existing.status === 'CANCELLED' || existing.status === 'REJECTED') {
+      throw new Error(`Order is already ${existing.status.toLowerCase()}.`);
+    }
+
+    const data: any = { status };
+
+    if (status === 'PREPARING') {
+      if (existing.status !== 'RECEIVED') {
+        throw new Error('Order must be in RECEIVED state to start PREPARING');
+      }
+      data.acceptedAt = existing.acceptedAt ?? new Date();
+    } else if (status === 'READY') {
+      if (existing.status !== 'PREPARING') {
+        throw new Error('Order must be in PREPARING state to mark READY');
+      }
+      data.readyAt = existing.readyAt ?? new Date();
+    } else if (status === 'SERVED') {
+      if (existing.status !== 'READY') {
+        throw new Error('Order must be in READY state to mark SERVED');
+      }
+      data.servedAt = existing.servedAt ?? new Date();
+    } else if (status === 'CANCELLED' || status === 'REJECTED') {
+      data.cancelledAt = existing.cancelledAt ?? new Date();
+      data.cancellationReason = reason || 'Order cancelled';
+    } else {
+      throw new Error(`Invalid status transition to ${status}`);
+    }
+
     return prisma.order.update({
       where: { id: orderId },
-      data: { status },
+      data,
     }) as any;
   }
 }
 
 export class PrismaPaymentRepository implements IPaymentRepository {
-  async processCheckout(sessionId: string, amount: number) {
-    await prisma.$transaction([
-      prisma.payment.create({ data: { sessionId, status: 'COMPLETED', amount } }),
-      prisma.session.update({ where: { id: sessionId }, data: { status: 'CLOSED' } }),
-    ]);
+  async processCheckout(tenantId: string, sessionId: string, amount: number) {
+    return prisma.$transaction(async (tx) => {
+      const session = await tx.session.findUnique({
+        where: { id: sessionId },
+        include: {
+          orders: {
+            include: { items: true },
+          },
+        },
+      });
+
+      if (!session) {
+        throw new Error('Session not found.');
+      }
+
+      if (session.status === 'CLOSED') {
+        throw new Error('Session is already closed.');
+      }
+
+      // Compute running subtotal of all non-cancelled, non-rejected orders
+      const subtotal = session.orders
+        .filter((o) => o.status !== 'CANCELLED' && o.status !== 'REJECTED')
+        .flatMap((o) => o.items)
+        .reduce((sum, item) => sum + item.lineTotal, 0);
+
+      const taxAmount = 0.0;
+      const discountAmount = 0.0;
+      const tipAmount = 0.0;
+      const expectedTotal = subtotal + taxAmount + tipAmount - discountAmount;
+
+      if (amount < expectedTotal) {
+        throw new Error(`Insufficient payment amount. Expected ${expectedTotal}, got ${amount}.`);
+      }
+
+      const closedAt = new Date();
+
+      await tx.payment.create({
+        data: {
+          tenantId,
+          sessionId,
+          status: 'COMPLETED',
+          amount,
+          method: 'MOCK_PAY',
+        },
+      });
+
+      await tx.session.update({
+        where: { id: sessionId },
+        data: {
+          status: 'CLOSED',
+          closedAt,
+          subtotal,
+          taxAmount,
+          tipAmount,
+          discountAmount,
+          totalAmount: expectedTotal,
+        },
+      });
+    });
   }
 }
 
@@ -142,7 +241,10 @@ export class PrismaRestaurantRepository implements IRestaurantRepository {
   }
 
   async deleteCategory(categoryId: string) {
-    await prisma.menuCategory.delete({ where: { id: categoryId } });
+    await prisma.menuCategory.update({ 
+      where: { id: categoryId },
+      data: { isActive: false, deletedAt: new Date() }
+    });
   }
 }
 
@@ -173,6 +275,9 @@ export class PrismaMenuItemRepository implements IMenuItemRepository {
   }
 
   async deleteItem(id: string) {
-    await prisma.menuItem.delete({ where: { id } });
+    await prisma.menuItem.update({ 
+      where: { id },
+      data: { isActive: false, deletedAt: new Date() }
+    });
   }
 }

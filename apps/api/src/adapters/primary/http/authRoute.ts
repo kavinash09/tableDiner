@@ -32,7 +32,8 @@ const authConfig = {
   ],
   session: { strategy: "jwt" as const },
   secret: process.env.AUTH_SECRET || "super-secret-key-for-mvp-only",
-  trustHost: true
+  trustHost: true,
+  basePath: "/api/auth"
 };
 
 export async function authHandler(request: FastifyRequest, reply: FastifyReply) {
@@ -49,7 +50,13 @@ export async function authHandler(request: FastifyRequest, reply: FastifyReply) 
 
   let body = undefined;
   if (['POST', 'PUT', 'PATCH'].includes(request.method) && request.body) {
-    body = JSON.stringify(request.body);
+    if (request.headers['content-type']?.includes('application/x-www-form-urlencoded')) {
+      body = new URLSearchParams(request.body as Record<string, string>).toString();
+      headers.set('content-type', 'application/x-www-form-urlencoded');
+    } else {
+      body = JSON.stringify(request.body);
+      headers.set('content-type', 'application/json');
+    }
   }
 
   const req = new Request(url, {

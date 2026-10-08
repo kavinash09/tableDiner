@@ -8,6 +8,7 @@ async function main() {
   await prisma.menuCategory.deleteMany();
   await prisma.table.deleteMany();
   await prisma.restaurant.deleteMany();
+  await prisma.user.deleteMany();
   await prisma.tenant.deleteMany();
 
   const tenant = await prisma.tenant.create({

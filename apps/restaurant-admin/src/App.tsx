@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { KitchenOrdersResponse, Restaurant, Table, MenuCategory, MenuItem } from '@tablediner/shared-types';
 import { QRCodeSVG } from 'qrcode.react';
 import { MenuManager } from './components/MenuManager';
+import { Dashboard } from './components/Dashboard';
 import { useAuth } from './AuthContext';
 import { Login } from './components/Login';
 
@@ -12,7 +13,7 @@ type FullRestaurant = Restaurant & { tables: Table[], menuCategories: (MenuCateg
 export default function App() {
   const { user, loading, logout } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'KITCHEN' | 'SETTINGS' | 'MENU'>('KITCHEN');
+  const [activeTab, setActiveTab] = useState<'KITCHEN' | 'SETTINGS' | 'MENU' | 'ANALYTICS'>('ANALYTICS');
   
   // Kitchen State
   const [orders, setOrders] = useState<KitchenOrdersResponse>([]);
@@ -22,19 +23,6 @@ export default function App() {
   const [restaurant, setRestaurant] = useState<FullRestaurant | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
-
-  // Initial Fetch
-  useEffect(() => {
-    fetchOrders();
-    fetchRestaurant();
-    const interval = setInterval(() => {
-      if (activeTab === 'KITCHEN') fetchOrders();
-    }, 5000);
-    if (loading) return <div className="min-h-screen flex items-center justify-center bg-zinc-900 text-zinc-400">Loading...</div>;
-  if (!user) return <Login />;
-
-  return () => clearInterval(interval);
-  }, [activeTab]);
 
   const fetchOrders = () => {
     fetch(`${API_URL}/kitchen/orders`)
@@ -55,6 +43,19 @@ export default function App() {
       .then(data => setRestaurant(data))
       .catch(err => console.error(err));
   };
+
+  // Initial Fetch
+  useEffect(() => {
+    fetchOrders();
+    fetchRestaurant();
+    const interval = setInterval(() => {
+      if (activeTab === 'KITCHEN') fetchOrders();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [activeTab]);
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-zinc-900 text-zinc-400">Loading...</div>;
+  if (!user) return <Login />;
 
   const updateStatus = (orderId: string, status: string) => {
     fetch(`${API_URL}/kitchen/orders/${orderId}`, {
@@ -90,7 +91,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen p-6 bg-paper font-sans">
-      <header className="mb-8 flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-zinc-200">
+      <header className="mb-8 flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-zinc-200 print:hidden">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-forest-900 flex items-center gap-2">
             {restaurant?.name || 'Restaurant Admin'}
@@ -121,6 +122,12 @@ export default function App() {
             className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors ${activeTab === 'MENU' ? 'bg-white text-forest-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}
           >
             📋 Menu
+          </button>
+          <button 
+            onClick={() => setActiveTab('ANALYTICS')}
+            className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors ${activeTab === 'ANALYTICS' ? 'bg-white text-forest-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}
+          >
+            📊 Analytics
           </button>
         </div>
       </header>
@@ -309,6 +316,10 @@ export default function App() {
 
       {activeTab === 'MENU' && restaurant && (
         <MenuManager restaurant={restaurant} fetchRestaurant={fetchRestaurant} />
+      )}
+
+      {activeTab === 'ANALYTICS' && restaurant && (
+        <Dashboard restaurantId={restaurant.id} />
       )}
     </div>
   );

@@ -46,24 +46,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const res = await fetch(`${API_URL}/api/auth/callback/credentials`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type': 'application/json',
       },
       credentials: 'include',
-      body: new URLSearchParams({
+      redirect: 'manual', // Prevent browser from following the 302 Auth.js redirect
+      body: JSON.stringify({
         email,
         password: pass,
         csrfToken,
-        redirect: 'false', // VERY IMPORTANT FOR SPA
+        redirect: false, // VERY IMPORTANT FOR SPA
       }),
     });
 
-    const data = await res.json();
-    if (data.error) {
-      throw new Error(data.error);
+    if (res.type === 'opaqueredirect' || res.status === 302 || res.ok) {
+      // 3. Re-fetch session
+      await fetchSession();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Login failed');
     }
-
-    // 3. Re-fetch session
-    await fetchSession();
   };
 
   const logout = async () => {

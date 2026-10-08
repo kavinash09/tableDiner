@@ -3,6 +3,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
 import staticPlugin from '@fastify/static';
+import formbody from '@fastify/formbody';
 import path from 'path';
 import fs from 'fs';
 import { config } from './config';
@@ -26,6 +27,12 @@ import {
 } from './adapters/secondary/db/PrismaRepositories';
 
 // Import Core Use Cases
+import { PrismaClient } from "@tablediner/db";
+const prismaClient = new PrismaClient();
+import { PrismaRestaurantAnalyticsRepository } from "./adapters/secondary/db/PrismaRestaurantAnalyticsRepository";
+import { GetRestaurantDashboardUseCase } from "./core/use-cases/GetRestaurantDashboardUseCase";
+import { PrismaPlatformAnalyticsRepository } from "./adapters/secondary/db/PrismaPlatformAnalyticsRepository";
+import { GetPlatformDashboardUseCase } from "./core/use-cases/GetPlatformDashboardUseCase";
 import { AppUseCases } from './core/use-cases/AppUseCases';
 
 // Ensure uploads dir exists for local dev
@@ -42,6 +49,11 @@ const paymentRepo = new PrismaPaymentRepository();
 const restaurantRepo = new PrismaRestaurantRepository();
 const menuItemRepo = new PrismaMenuItemRepository();
 
+const analyticsRepo = new PrismaRestaurantAnalyticsRepository(prismaClient);
+const getRestaurantDashboardUseCase = new GetRestaurantDashboardUseCase(analyticsRepo);
+const platformAnalyticsRepo = new PrismaPlatformAnalyticsRepository(prismaClient);
+const getPlatformDashboardUseCase = new GetPlatformDashboardUseCase(platformAnalyticsRepo);
+
 const appUseCases = new AppUseCases(
   tableRepo,
   sessionRepo,
@@ -51,16 +63,32 @@ const appUseCases = new AppUseCases(
   menuItemRepo
 );
 
+const allowedOrigins = config.ALLOWED_ORIGINS.split(',').map(o => o.trim());
+
 app.register(cors, {
   origin: (origin, cb) => {
-    cb(null, true); // Allow dynamically for credentials support
+    // Mobile apps or internal server calls might not have an origin
+    if (!origin) {
+      if (config.NODE_ENV === 'development' || config.NODE_ENV === 'test') return cb(null, true);
+      return cb(new Error('Not allowed by CORS'), false);
+    }
+    
+    // Check against allowed origins from environment
+    if (allowedOrigins.includes(origin) || config.NODE_ENV === 'development' || config.NODE_ENV === 'test') {
+      cb(null, true);
+    } else {
+      cb(new Error('Not allowed by CORS'), false);
+    }
   },
   credentials: true,
 });
 
+
 app.register(multipart, {
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
+
+app.register(formbody);
 
 app.register(staticPlugin, {
   root: uploadsDir,
@@ -132,7 +160,9 @@ app.post('/table/:qrCode/pay', async (request, reply) => {
 // --- KITCHEN DASHBOARD ROUTES ---
 app.get('/kitchen/orders', async (request, reply) => {
   try {
-    const orders = await appUseCases.getKitchenOrders();
+    const restaurant = await appUseCases.getCurrentRestaurant();
+    if (!restaurant) return reply.status(404).send({ error: 'Restaurant not found' });
+    const orders = await appUseCases.getKitchenOrders(restaurant.id);
     return orders;
   } catch (err) {
     app.log.error(err);
@@ -151,9 +181,9 @@ app.patch('/kitchen/orders/:orderId', async (request, reply) => {
   try {
     const order = await appUseCases.updateOrderStatus(orderId, status);
     return order;
-  } catch (err) {
+  } catch (err: any) {
     app.log.error(err);
-    return reply.status(500).send({ error: 'Failed to update order status.' });
+    return reply.status(400).send({ error: err.message || 'Failed to update order status.' });
   }
 });
 
@@ -316,14 +346,88 @@ app.all('/api/auth/*', async (request, reply) => {
   return authHandler(request, reply);
 });
 
+import { GetEODAuditReportUseCase } from './core/use-cases/GetEODAuditReportUseCase';
+
+const getEODAuditReportUseCase = new GetEODAuditReportUseCase(analyticsRepo);
+
+// --- ANALYTICS ROUTES ---
+app.get("/api/v1/restaurants/:id/metrics/daily", async (request, reply) => {
+  const { id } = request.params as { id: string };
+  const { date } = request.query as { date?: string };
+
+  try {
+    // If no date provided, use today's logical date based on current time (assumed UTC / server time)
+    const targetDate = date || new Date().toISOString().split("T")[0];
+    
+    const dashboard = await getRestaurantDashboardUseCase.execute(id, targetDate);
+    return dashboard;
+  } catch (err: any) {
+    app.log.error(err);
+    return reply.status(500).send({ error: err.message || "Failed to fetch metrics" });
+  }
+});
+
+app.get("/api/v1/restaurants/:id/audit/eod", async (request, reply) => {
+  const { id } = request.params as { id: string };
+  const { date } = request.query as { date?: string };
+
+  try {
+    const targetDate = date || new Date().toISOString().split("T")[0];
+    const report = await getEODAuditReportUseCase.execute(id, targetDate);
+    return report;
+  } catch (err: any) {
+    app.log.error(err);
+    return reply.status(500).send({ error: err.message || "Failed to fetch EOD Audit Report" });
+  }
+});
+
+import { CsvExportAdapter } from './adapters/secondary/csv/CsvExportAdapter';
+const csvExportAdapter = new CsvExportAdapter();
+
+app.get("/api/v1/restaurants/:id/audit/eod/export", async (request, reply) => {
+  const { id } = request.params as { id: string };
+  const { date } = request.query as { date?: string };
+
+  try {
+    const targetDate = date || new Date().toISOString().split("T")[0];
+    const report = await getEODAuditReportUseCase.execute(id, targetDate);
+    const csvContent = csvExportAdapter.generateEodCsv(report);
+    
+    reply.header('Content-Type', 'text/csv');
+    reply.header('Content-Disposition', `attachment; filename="eod_audit_${id}_${targetDate}.csv"`);
+    return reply.send(csvContent);
+  } catch (err: any) {
+    app.log.error(err);
+    return reply.status(500).send({ error: err.message || "Failed to export EOD Audit Report" });
+  }
+});
+
+app.get("/api/v1/platform/metrics", async (request, reply) => {
+  const { date } = request.query as { date?: string };
+  try {
+    const targetDate = date || new Date().toISOString().split("T")[0];
+    const dashboard = await getPlatformDashboardUseCase.execute(targetDate);
+    return dashboard;
+  } catch (err: any) {
+    app.log.error(err);
+    return reply.status(500).send({ error: err.message || "Failed to fetch platform metrics" });
+  }
+});
+
+
+export { app };
+
 const start = async () => {
   try {
-    await app.listen({ port: 3001, host: '0.0.0.0' });
-    app.log.info('Server listening on port 3001');
+    await app.listen({ port: config.PORT, host: config.HOST });
+    app.log.info(`Server listening on http://${config.HOST}:${config.PORT}`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);
   }
 };
 
-start();
+// Only start the server if this file is executed directly (not when imported for tests)
+if (require.main === module) {
+  start();
+}

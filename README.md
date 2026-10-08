@@ -17,6 +17,8 @@ Before diving in, review the core documentation:
 | [`.ai/ARCHITECTURE.md`](./.ai/ARCHITECTURE.md) | Port registry, API route catalog, and data flow |
 | [`.ai/RETRIEVAL_GUIDE.md`](./.ai/RETRIEVAL_GUIDE.md) | How AI agents must ingest and update context |
 | [`.ai/DECISIONS.md`](./.ai/DECISIONS.md) | Append-only log of architectural decisions |
+| [`.ai/ANALYTICS_SPEC.md`](./.ai/ANALYTICS_SPEC.md) | V1 Specifications for Dashboards and SaaS metrics |
+
 | [`docs/IMPLEMENTATION_MAP.md`](./docs/IMPLEMENTATION_MAP.md) | Step-by-step chapter build plan |
 | [`packages/db/prisma/schema.prisma`](./packages/db/prisma/schema.prisma) | Prisma schema — single source of truth for data |
 
@@ -27,19 +29,34 @@ Before diving in, review the core documentation:
 ### Prerequisites
 - Node.js v18 (see `.nvmrc`)
 - pnpm v8+ (`npm install -g pnpm`)
+- Docker (for local PostgreSQL database)
 
-### Install
+### 1. Start Local PostgreSQL Database
+Run the persistent PostgreSQL container with host volume mapping:
+```bash
+docker run -d \
+  --name tablediner-postgres \
+  --restart unless-stopped \
+  -e POSTGRES_USER=tablediner \
+  -e POSTGRES_PASSWORD=tablediner_secret \
+  -e POSTGRES_DB=tablediner \
+  -p 5432:5432 \
+  -v "$(pwd)/.postgres_data:/var/lib/postgresql/data" \
+  postgres:16-alpine
+```
+
+### 2. Install & Sync Schema
 ```bash
 pnpm install
+cd packages/db && npx prisma db push && npx prisma generate
 ```
-> If you see `ERR_PNPM_IGNORED_BUILDS`, run `pnpm approve-builds` and select all packages.
 
-### Seed the database
+### 3. Seed the Database
 ```bash
 cd packages/db && npx tsx seed.ts
 ```
 
-### Start all apps
+### 4. Start All Apps
 ```bash
 pnpm dev
 ```
@@ -55,6 +72,10 @@ pnpm dev
 | Platform Admin | http://localhost:5175 | TableDiner super-admins |
 | API | http://localhost:3001/health | Backend (Fastify) |
 
+**Default Admin Login (for Restaurant & Platform Admin):**
+- **Email:** `admin@tablediner.com`
+- **Password:** `password123`
+
 ---
 
 ## 🏗️ Monorepo Structure
@@ -66,7 +87,7 @@ apps/
   restaurant-admin/ — React kitchen Kanban dashboard (port 5174)
   platform-admin/   — React super-admin panel (port 5175)
 packages/
-  db/               — Prisma client + SQLite schema + seed
+  db/               — Prisma client + PostgreSQL schema + seed
   shared-types/     — TypeScript interfaces (stub — pending population)
   shared-validation/— Zod schemas (stub — pending population)
   shared-config/    — ESLint/TS base configs (stub)

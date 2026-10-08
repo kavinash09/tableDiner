@@ -7,6 +7,8 @@ dotenv.config();
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(3001),
+  HOST: z.string().default("0.0.0.0"),
+  ALLOWED_ORIGINS: z.string().default("http://localhost:5173,http://localhost:5174,http://localhost:5175"),
   
   // AWS Configuration - strictly required in production
   AWS_REGION: z.string().optional(),

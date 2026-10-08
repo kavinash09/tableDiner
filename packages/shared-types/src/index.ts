@@ -17,6 +17,7 @@ export interface Restaurant {
   theme: string;
   qrTemplate: string;
   bannerUrl: string | null;
+  businessDayCutoffHour: number;
   isActive: boolean;
   deletedAt: string | null;
   createdAt: string;
@@ -60,50 +61,190 @@ export interface MenuItem {
 
 export interface Session {
   id: string;
-  status: 'ACTIVE' | 'CLOSED';
-  totalAmount: number | null;
+  tenantId: string;
   restaurantId: string;
   tableId: string;
+  status: 'OPEN' | 'CLOSED' | 'REOPENED' | 'FINALIZED';
+  businessDate: string | null;
+  guestCount: number;
+  
+  subtotal: number | null;
+  taxAmount: number | null;
+  discountAmount: number | null;
+  tipAmount: number | null;
+  refundedAmount: number | null;
+  totalAmount: number | null;
+  
   closedAt: string | null;
+  reopenedAt: string | null;
+  reopenedBy: string | null;
+  reopenReason: string | null;
+  
   createdAt: string;
   updatedAt: string;
 }
 
 export interface Order {
   id: string;
-  status: 'RECEIVED' | 'PREPARING' | 'READY' | 'SERVED';
+  tenantId: string;
   sessionId: string;
+  status: 'RECEIVED' | 'PREPARING' | 'READY' | 'SERVED' | 'CANCELLED' | 'REJECTED';
+  businessDate: string | null;
+  
   acceptedAt: string | null;
   readyAt: string | null;
   servedAt: string | null;
+  cancelledAt: string | null;
+  cancellationReason: string | null;
+  
   createdAt: string;
   updatedAt: string;
 }
 
 export interface OrderItem {
   id: string;
+  tenantId: string;
+  orderId: string;
+  menuItemId: string;
   quantity: number;
   notes?: string | null;
   unitPrice: number;
   lineTotal: number;
-  orderId: string;
-  menuItemId: string;
+  
+  isVoided: boolean;
+  voidReason: string | null;
+  voidedAt: string | null;
+  voidedBy: string | null;
+  
   createdAt: string;
   updatedAt: string;
 }
 
 export interface Payment {
   id: string;
+  tenantId: string;
+  sessionId: string;
   status: 'PENDING' | 'COMPLETED' | 'FAILED';
   amount: number;
   providerId: string | null;
   method: string | null;
-  sessionId: string;
   createdAt: string;
   updatedAt: string;
 }
 
-// API Response Types
+// ----------------------------------------------------------------------
+// Analytics & Metrics API Contracts (Based on ANALYTICS_SPEC.md v1)
+// ----------------------------------------------------------------------
+
+// 1. Restaurant Owner - Dashboard Metrics
+export interface DailyFinancialMetrics {
+  grossRevenue: number;
+  netRevenue: number;
+  totalDiscounts: number;
+  totalTips: number;
+  refundedRevenue: number;
+  avgTicketSize: number;
+}
+
+export interface DailyOrderMetrics {
+  totalOrders: number;
+  completedOrders: number;
+  cancelledOrders: number;
+  cancellationRate: number; // decimal (e.g. 0.05 for 5%)
+}
+
+export interface DailyUtilizationMetrics {
+  coversServed: number;
+  avgPartySize: number;
+  revenuePerCover: number;
+  occupancyPercent: number; // decimal
+  avgTableTurnTimeMinutes: number;
+}
+
+export interface DailySlaMetrics {
+  avgKitchenPrepTimeMinutes: number;
+  avgServiceTimeMinutes: number;
+  avgFulfillmentTimeMinutes: number;
+}
+
+export interface RestaurantDashboardResponse {
+  businessDate: string;
+  financials: DailyFinancialMetrics;
+  orders: DailyOrderMetrics;
+  utilization: DailyUtilizationMetrics;
+  slas: DailySlaMetrics;
+}
+
+// 2. Restaurant Owner - Menu Insights
+export interface MenuItemInsight {
+  menuItemId: string;
+  name: string;
+  quantitySold: number;
+  revenueGenerated: number;
+}
+
+export interface RestaurantInsightsResponse {
+  businessDate: string;
+  topSellers: MenuItemInsight[];
+  bottomSellers: MenuItemInsight[];
+}
+
+// 3. Restaurant Owner - End of Day Audit (EOD)
+export interface EodSessionRecord {
+  sessionId: string;
+  tableName: string;
+  guestCount: number;
+  grossAmount: number;
+  discountAmount: number;
+  taxAmount: number;
+  tipAmount: number;
+  netAmount: number;
+  paymentMethods: string[];
+  closedAt: string;
+  status: string; 
+}
+
+export interface RestaurantEodReportResponse {
+  businessDate: string;
+  financialSummary: DailyFinancialMetrics;
+  sessions: EodSessionRecord[];
+}
+
+// 4. Platform Admin - Dashboard Metrics
+export interface PlatformFinancialMetrics {
+  mrr: number; 
+  arr: number; 
+  newMrr: number;
+  churnedMrr: number;
+  churnRate: number; // decimal
+}
+
+export interface PlatformGmvMetrics {
+  totalGmv: number;
+  ordersProcessed: number;
+  sessionsProcessed: number;
+  avgOrderValue: number;
+}
+
+export interface TenantFunnelMetrics {
+  leadCount: number;
+  trialCount: number;
+  activeCount: number;
+  suspendedCount: number;
+  decommissionedCount: number;
+}
+
+export interface PlatformDashboardResponse {
+  reportDate: string; 
+  financials: PlatformFinancialMetrics;
+  gmv: PlatformGmvMetrics;
+  funnel: TenantFunnelMetrics;
+}
+
+// ----------------------------------------------------------------------
+// Standard API Response Types
+// ----------------------------------------------------------------------
+
 export interface HealthResponse {
   status: string;
 }

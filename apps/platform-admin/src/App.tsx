@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { AdminRestaurantsResponse } from '@tablediner/shared-types';
 import { useAuth } from './AuthContext';
 import { Login } from './components/Login';
+import { Dashboard } from './components/Dashboard';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
@@ -14,6 +15,7 @@ const App = () => {
   const [tablesCount, setTablesCount] = useState(1);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [activeTab, setActiveTab] = useState<'tenants' | 'analytics'>('tenants');
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -74,7 +76,34 @@ const App = () => {
             Sign Out
           </button>
         </header>
-        
+
+        <div className="flex space-x-4 border-b border-zinc-200">
+          <button
+            onClick={() => setActiveTab('tenants')}
+            className={`py-2 px-4 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'tenants'
+                ? 'border-forest-900 text-forest-900'
+                : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300'
+            }`}
+          >
+            Tenants
+          </button>
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`py-2 px-4 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'analytics'
+                ? 'border-forest-900 text-forest-900'
+                : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300'
+            }`}
+          >
+            Analytics
+          </button>
+        </div>
+
+        {activeTab === 'analytics' ? (
+          <Dashboard />
+        ) : (
+          <>
         <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 overflow-hidden">
           <div className="p-6 border-b border-zinc-200 bg-paper/50">
             <h2 className="text-xl font-semibold text-forest-900">Onboard New Tenant</h2>
@@ -187,6 +216,8 @@ const App = () => {
             )}
           </div>
         </div>
+          </>
+        )}
       </div>
 
       {/* Toast Notification */}

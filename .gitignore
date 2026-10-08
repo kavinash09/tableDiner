@@ -19,6 +19,7 @@ build/
 # Database
 packages/db/tablediner.db*
 packages/db/tablediner.db-journal
+.postgres_data/
 
 # OS
 .DS_Store

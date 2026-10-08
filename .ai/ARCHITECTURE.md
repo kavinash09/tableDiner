@@ -23,7 +23,7 @@
 - **restaurant-admin** (React, port 5174): Kitchen/staff-facing Kanban board. Polls API every 5s. NO direct DB access.
 - **platform-admin** (React, port 5175): Internal super-admin for tenant/restaurant onboarding. Talks to API. NO direct DB access.
 - **api** (Fastify, port 3001): Central backend. Handles ALL business logic. Only component that touches DB.
-- **db** (SQLite + Prisma, `packages/db/prisma/tablediner.db`): Single source of truth.
+- **db** (PostgreSQL 16 + Prisma; local Docker with volume mapping for dev, managed RDS for prod): Single source of truth.
 
 ---
 
@@ -47,6 +47,14 @@
 |--------|-------|------|-------------|
 | GET | `/kitchen/orders` | — | Returns all non-SERVED orders (RECEIVED, PREPARING, READY) |
 | PATCH | `/kitchen/orders/:orderId` | `{ status: string }` | Advances order status |
+
+### Analytics & Reporting
+| Method | Route | Body | Description |
+|--------|-------|------|-------------|
+| GET | `/api/v1/restaurants/:id/metrics/daily` | `?date=YYYY-MM-DD` | Returns daily KPIs (Financials, SLA, Utilization) for a specific restaurant |
+| GET | `/api/v1/restaurants/:id/audit/eod` | `?date=YYYY-MM-DD` | Returns daily EOD Audit JSON output for a specific restaurant |
+| GET | `/api/v1/restaurants/:id/audit/eod/export` | `?date=YYYY-MM-DD` | Returns daily EOD Audit Report as a CSV file attachment |
+
 
 ### Platform Admin (Super-Admin Only)
 | Method | Route | Body | Description |
@@ -105,3 +113,4 @@ Customer Phone
 3. `Order` status flow: `RECEIVED` → `PREPARING` → `READY` → `SERVED`.
 4. All currency in **Rupees (₹)**. Stored as `Float` in DB.
 5. API auto-creates a Session on first order if none exists.
+6. **Reporting Cutoff**: Business dates are computed based on the restaurant's `businessDayCutoffHour` to support post-midnight reporting.

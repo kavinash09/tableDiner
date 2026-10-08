@@ -43,3 +43,9 @@ Once the diners are finished, they check their phone for the running total of th
 We build a minimalistic internal tool for our team. From here, we can create a new `Tenant` (restaurant), set up their `Table`s, generate their printable QR codes, and view high-level revenue analytics. 
 **The Outcome:** The administrative tools needed to actually run TableDiner as a SaaS business.
 
+
+## Chapter 7: Enterprise Analytics & Reporting 📊
+**The Goal:** Provide deep operational insights to Restaurant Owners and Platform Admins.
+**What we do:** 
+We implement the `ANALYTICS_SPEC.md` v1. We restructure the database to support denormalized cross-tenant GMV queries, track historical financial breakdowns (Taxes, Tips, Refunds), and implement a `businessDayCutoffHour` to handle midnight crossovers seamlessly. We build robust Domain Use Cases using Hexagonal Architecture to serve metrics to new Dashboards.
+**The Outcome:** A true SaaS reporting engine capable of providing EOD Audits, Table Utilization metrics, and Global GMV without crushing the database.

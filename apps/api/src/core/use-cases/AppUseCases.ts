@@ -41,9 +41,18 @@ export class AppUseCases {
     const table = await this.tableRepo.findByQrCode(qrCode);
     if (!table) throw new Error('Table not found.');
 
+    const tenantId = table.restaurant.tenantId;
+    const cutoffHour = table.restaurant.businessDayCutoffHour || 4;
+    
+    const now = new Date();
+    if (now.getHours() < cutoffHour) {
+      now.setDate(now.getDate() - 1);
+    }
+    const businessDate = now.toISOString().split('T')[0];
+
     let session = table.sessions[0];
     if (!session) {
-      session = await this.sessionRepo.createActiveSession(table.restaurantId, table.id);
+      session = await this.sessionRepo.createActiveSession(tenantId, table.restaurantId, table.id, businessDate);
     }
 
     // Domain Logic: Map pricing at the time of order
@@ -56,7 +65,7 @@ export class AppUseCases {
         lineTotal: menuItem.price * item.quantity
       };
     }));
-    const order = await this.orderRepo.createOrder(session.id, enrichedItems);
+    const order = await this.orderRepo.createOrder(tenantId, session.id, businessDate, enrichedItems);
     return order;
   }
 
@@ -72,9 +81,9 @@ export class AppUseCases {
 
     for (const order of session.orders) {
       for (const item of order.items) {
-        const lineTotal = item.menuItem.price * item.quantity;
-        totalAmount += lineTotal;
-        itemized.push({ name: item.menuItem.name, quantity: item.quantity, price: item.menuItem.price, lineTotal });
+        // Exclude voided items if necessary (not currently implemented, but we rely on snapshot)
+        totalAmount += item.lineTotal;
+        itemized.push({ name: item.menuItem.name, quantity: item.quantity, price: item.unitPrice, lineTotal: item.lineTotal });
       }
     }
 
@@ -88,15 +97,16 @@ export class AppUseCases {
     }
 
     const session = table.sessions[0];
-    await this.paymentRepo.processCheckout(session.id, amount);
+    const tenantId = table.restaurant.tenantId;
+    await this.paymentRepo.processCheckout(tenantId, session.id, amount);
   }
 
-  async getKitchenOrders() {
-    return this.orderRepo.getActiveOrders();
+  async getKitchenOrders(restaurantId: string) {
+    return this.orderRepo.getActiveOrders(restaurantId);
   }
 
-  async updateOrderStatus(orderId: string, status: string) {
-    return this.orderRepo.updateOrderStatus(orderId, status);
+  async updateOrderStatus(orderId: string, status: string, reason?: string) {
+    return this.orderRepo.updateOrderStatus(orderId, status, reason);
   }
 
   async getPlatformTenants() {
