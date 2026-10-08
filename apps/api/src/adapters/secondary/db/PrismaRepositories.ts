@@ -53,7 +53,7 @@ export class PrismaOrderRepository implements IOrderRepository {
         sessionId,
         status: 'RECEIVED',
         items: {
-          create: items.map(item => ({ menuItemId: item.menuItemId, quantity: item.quantity, notes: item.notes || null })),
+          create: items.map(item => ({ menuItemId: item.menuItemId, quantity: item.quantity, notes: item.notes || null, unitPrice: (item as any).unitPrice, lineTotal: (item as any).lineTotal })),
         },
       },
       include: { items: true },
@@ -147,6 +147,11 @@ export class PrismaRestaurantRepository implements IRestaurantRepository {
 }
 
 export class PrismaMenuItemRepository implements IMenuItemRepository {
+
+  async findById(id: string): Promise<any> {
+    return prisma.menuItem.findUnique({ where: { id } });
+  }
+
   async updateImage(id: string, imageUrl: string) {
     await prisma.menuItem.update({
       where: { id },

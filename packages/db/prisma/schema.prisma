@@ -8,9 +8,17 @@ datasource db {
 }
 
 model Tenant {
-  id          String       @id @default(cuid())
-  name        String
+  id               String       @id @default(cuid())
+  name             String
+  onboardingStatus String       @default("ONBOARDING") // LEAD, ONBOARDING, ACTIVE, SUSPENDED, DECOMMISSIONED
+  isActive         Boolean      @default(true)
+  
   restaurants Restaurant[]
+  users       User[]
+  
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Restaurant {
@@ -21,6 +29,7 @@ model Restaurant {
   theme            String   @default("FOREST")
   qrTemplate       String   @default("MINIMAL")
   bannerUrl        String?
+  isActive         Boolean  @default(true)
   
   tenant Tenant @relation(fields: [tenantId], references: [id])
   
@@ -28,27 +37,41 @@ model Restaurant {
   sessions       Session[]
   menuCategories MenuCategory[]
   menuItems      MenuItem[]
+  
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Table {
   id           String @id @default(cuid())
   name         String
   qrCode       String @unique @default(cuid())
+  isActive     Boolean @default(true)
   
   restaurantId String
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
   
   sessions     Session[]
+  
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model MenuCategory {
   id           String @id @default(cuid())
   name         String
+  isActive     Boolean @default(true)
   
   restaurantId String
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
   
   items        MenuItem[]
+  
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model MenuItem {
@@ -57,6 +80,7 @@ model MenuItem {
   description  String?
   price        Float
   imageUrl     String?
+  isActive     Boolean @default(true)
   
   categoryId   String?
   category     MenuCategory? @relation(fields: [categoryId], references: [id])
@@ -65,11 +89,16 @@ model MenuItem {
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
 
   orderItems   OrderItem[]
+  
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Session {
   id           String @id @default(cuid())
   status       String @default("ACTIVE") // ACTIVE, CLOSED
+  totalAmount  Float?
   
   restaurantId String
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
@@ -79,6 +108,10 @@ model Session {
 
   orders       Order[]
   payments     Payment[]
+  
+  closedAt  DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Order {
@@ -89,25 +122,81 @@ model Order {
   session      Session @relation(fields: [sessionId], references: [id])
 
   items        OrderItem[]
+  
+  acceptedAt DateTime?
+  readyAt    DateTime?
+  servedAt   DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model OrderItem {
   id           String @id @default(cuid())
   quantity     Int    @default(1)
   notes        String?
+  unitPrice    Float  @default(0) // snapshot of price at order time
+  lineTotal    Float  @default(0) // quantity * unitPrice
   
   orderId      String
   order        Order @relation(fields: [orderId], references: [id])
   
   menuItemId   String
   menuItem     MenuItem @relation(fields: [menuItemId], references: [id])
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Payment {
-  id           String @id @default(cuid())
-  status       String @default("PENDING") // PENDING, COMPLETED, FAILED
-  amount       Float  @default(0)
+  id               String  @id @default(cuid())
+  status           String  @default("PENDING") // PENDING, COMPLETED, FAILED
+  amount           Float   @default(0)
+  providerId       String? // e.g. stripe_tx_123
+  method           String? // CASH, UPI, CARD
   
   sessionId    String
   session      Session @relation(fields: [sessionId], references: [id])
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// --- NextAuth (Auth.js) Models ---
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?   // Added for Credentials provider
+  
+  tenantId      String?
+  tenant        Tenant?   @relation(fields: [tenantId], references: [id])
+  
+  accounts      Account[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

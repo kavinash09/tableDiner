@@ -40,6 +40,7 @@ export interface IRestaurantRepository {
 
 export interface IMenuItemRepository {
   updateImage(id: string, imageUrl: string): Promise<void>;
+  findById(id: string): Promise<any>;
   createItem(restaurantId: string, data: any): Promise<MenuItem>;
   updateItem(id: string, data: any): Promise<MenuItem>;
   deleteItem(id: string): Promise<void>;

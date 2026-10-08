@@ -2,12 +2,16 @@ import { useEffect, useState } from 'react';
 import type { KitchenOrdersResponse, Restaurant, Table, MenuCategory, MenuItem } from '@tablediner/shared-types';
 import { QRCodeSVG } from 'qrcode.react';
 import { MenuManager } from './components/MenuManager';
+import { useAuth } from './AuthContext';
+import { Login } from './components/Login';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
 type FullRestaurant = Restaurant & { tables: Table[], menuCategories: (MenuCategory & { items: MenuItem[] })[] };
 
 export default function App() {
+  const { user, loading, logout } = useAuth();
+
   const [activeTab, setActiveTab] = useState<'KITCHEN' | 'SETTINGS' | 'MENU'>('KITCHEN');
   
   // Kitchen State
@@ -26,7 +30,10 @@ export default function App() {
     const interval = setInterval(() => {
       if (activeTab === 'KITCHEN') fetchOrders();
     }, 5000);
-    return () => clearInterval(interval);
+    if (loading) return <div className="min-h-screen flex items-center justify-center bg-zinc-900 text-zinc-400">Loading...</div>;
+  if (!user) return <Login />;
+
+  return () => clearInterval(interval);
   }, [activeTab]);
 
   const fetchOrders = () => {

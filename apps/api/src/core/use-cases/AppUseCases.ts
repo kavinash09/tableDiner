@@ -46,7 +46,17 @@ export class AppUseCases {
       session = await this.sessionRepo.createActiveSession(table.restaurantId, table.id);
     }
 
-    const order = await this.orderRepo.createOrder(session.id, items);
+    // Domain Logic: Map pricing at the time of order
+    const enrichedItems = await Promise.all(items.map(async (item) => {
+      const menuItem = await this.menuItemRepo.findById(item.menuItemId);
+      if (!menuItem) throw new Error(`Menu item ${item.menuItemId} not found`);
+      return {
+        ...item,
+        unitPrice: menuItem.price,
+        lineTotal: menuItem.price * item.quantity
+      };
+    }));
+    const order = await this.orderRepo.createOrder(session.id, enrichedItems);
     return order;
   }
 

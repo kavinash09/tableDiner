@@ -1,3 +1,4 @@
+import { authHandler } from './adapters/primary/http/authRoute';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
@@ -51,7 +52,10 @@ const appUseCases = new AppUseCases(
 );
 
 app.register(cors, {
-  origin: '*', // For MVP/development, allow all origins
+  origin: (origin, cb) => {
+    cb(null, true); // Allow dynamically for credentials support
+  },
+  credentials: true,
 });
 
 app.register(multipart, {
@@ -199,7 +203,7 @@ app.patch('/restaurant/:id/settings', async (request, reply) => {
     }
 
     const { theme, qrTemplate } = parseResult.data;
-    const restaurant = await appUseCases.updateRestaurantSettings(id, theme, qrTemplate);
+    const restaurant = await appUseCases.updateRestaurantSettings(id, theme as string, qrTemplate as string);
     return restaurant;
   } catch (err) {
     app.log.error(err);
@@ -304,6 +308,12 @@ app.delete('/menu-item/:id', async (request, reply) => {
     app.log.error(err);
     return reply.status(500).send({ error: 'Failed to delete menu item' });
   }
+});
+
+
+// --- AUTHENTICATION ROUTES (NextAuth / Auth.js) ---
+app.all('/api/auth/*', async (request, reply) => {
+  return authHandler(request, reply);
 });
 
 const start = async () => {

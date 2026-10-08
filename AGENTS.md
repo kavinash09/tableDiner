@@ -1,4 +1,5 @@
-# Antigravity Agent Rules for TableDiner
+# Agent Rules for TableDiner
+
 ## The Complete AI Development Constitution
 
 These rules are injected into every conversation. They encode every hard lesson learned during this project's development. Violating these rules degrades AI effectiveness and causes context rot. There are no exceptions.
@@ -57,6 +58,7 @@ Execute this checklist at the start of every task:
 - ❌ NEVER replace the entire file contents. Use append-only or `replace_file_content` targeting specific lines.
 
 **Good entry format:**
+
 ```markdown
 ### 2026-10-08: Why We Chose Polling Over WebSockets (Chapter 4)
 - **Decision**: Used 5-second HTTP polling for kitchen dashboard.
@@ -66,6 +68,7 @@ Execute this checklist at the start of every task:
 ```
 
 **Bad entry (do not do this):**
+
 ```markdown
 ### Chapter 4
 - Used polling.
@@ -76,11 +79,13 @@ Execute this checklist at the start of every task:
 ## 🏗️ RULE 4: Update ARCHITECTURE.md Every Time a Route or Port Changes
 
 `ARCHITECTURE.md` is the single source of truth for:
+
 - **Port registry** (which app runs on which port)
 - **API route catalog** (method, path, body, description)
 - **Shared package status** (active vs stub)
 
 After adding, removing, or modifying any API route or adding a new app:
+
 1. Open `ARCHITECTURE.md`
 2. Update the relevant table
 3. Commit the change in the same step — never defer this
@@ -94,6 +99,7 @@ After adding, removing, or modifying any API route or adding a new app:
 `CURRENT_TASK.md` is a **live forward-looking queue**, not a retrospective.
 
 **Rules:**
+
 - ✅ After completing a task, immediately replace the content with the *next* task and its sub-steps.
 - ✅ Use checkboxes `[ ]` for pending, `[x]` for done.
 - ✅ Include a "Next Up After This" section so the agent always has a horizon.
@@ -101,6 +107,7 @@ After adding, removing, or modifying any API route or adding a new app:
 - ❌ NEVER leave it empty.
 
 **If all chapters are done**, write:
+
 ```markdown
 **Active Objective**: Post-MVP Polish Sprint
 - [ ] Identify top 3 real-world friction points from testing
@@ -118,6 +125,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 ```
 
 Each app MUST have a `.env.local` file:
+
 ```env
 VITE_API_URL=http://localhost:3001
 ```
@@ -156,15 +164,18 @@ The Fastify process crashing means ALL tables lose ordering ability simultaneous
 The packages `shared-types` and `shared-validation` exist to prevent API-UI drift.
 
 **Before using them:**
+
 - Verify they are NOT `export {}` stubs (run the Sanity Check from Rule 2)
 - If still stubs, populate them before generating code that imports from them
 
 **When populating `shared-types`:**
+
 - Define TypeScript interfaces matching EVERY API response shape
 - Export them from `src/index.ts`
 - Then update imports in `apps/api` and all frontend apps to use them
 
 **When populating `shared-validation`:**
+
 - Write Zod schemas for every POST/PATCH request body
 - Use `schema.parse()` at the top of the route handler — before any DB call
 - Log the addition in `DECISIONS.md`
@@ -199,6 +210,7 @@ All frontend apps must be designed mobile-first:
 ```
 
 For inline styles (current pattern):
+
 ```tsx
 // ✅ Use flexWrap: 'wrap' with flex: '1 1 300px' on children
 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
@@ -222,6 +234,7 @@ For inline styles (current pattern):
 ## 🏛️ RULE 12: No Architecture Changes Without Explicit User Approval
 
 Before introducing:
+
 - A new npm dependency
 - A new app or package
 - A new database model or field
@@ -253,6 +266,7 @@ Before declaring any task complete, run through this checklist:
 ## 📚 RULE 14: Every App and Package Must Have a README.md
 
 Each `apps/*` and `packages/*` directory MUST have a `README.md` covering:
+
 - What it does (1-2 sentences)
 - How to run it in development
 - Required environment variables
@@ -266,24 +280,26 @@ Update the README whenever deployment, env vars, or startup commands change.
 
 Maintain these files and never let them drift:
 
-| File | Purpose | Rule |
-|------|---------|------|
-| `.nvmrc` | Locks Node.js version | Must be `18` (current LTS used in this project) |
-| `.gitignore` | Prevents junk in VCS | Must include: `node_modules/`, `dist/`, `.env`, `*.db`, `.DS_Store` |
-| `.vscode/settings.json` | Editor consistency | Must exist; include formatter settings |
-| `pnpm-workspace.yaml` | Workspace definition | Must list all `apps/*` and `packages/*` |
+| File                      | Purpose               | Rule                                                                         |
+| ------------------------- | --------------------- | ---------------------------------------------------------------------------- |
+| `.nvmrc`                | Locks Node.js version | Must be`18` (current LTS used in this project)                             |
+| `.gitignore`            | Prevents junk in VCS  | Must include:`node_modules/`, `dist/`, `.env`, `*.db`, `.DS_Store` |
+| `.vscode/settings.json` | Editor consistency    | Must exist; include formatter settings                                       |
+| `pnpm-workspace.yaml`   | Workspace definition  | Must list all`apps/*` and `packages/*`                                   |
 
 ---
 
 ## 🚫 RULE 16: Never Make Silent Assumptions
 
 If a requirement is ambiguous:
+
 - **STOP. Ask the user.**
 - Do not guess business logic.
 - Do not implement "the obvious interpretation" without asking.
 
 Examples of things that require explicit clarification:
-- "Should this be per-restaurant or global?" 
+
+- "Should this be per-restaurant or global?"
 - "What should happen when a session is already closed?"
 - "Should we validate the payment amount server-side?"
 
@@ -293,26 +309,27 @@ Examples of things that require explicit clarification:
 
 ## 📊 Quick Reference Card
 
-| Concern | Pattern |
-|---------|---------|
-| API dev server | `tsx --watch src/index.ts` |
-| Seed DB | `npx tsx seed.ts` |
-| API URL in frontend | `import.meta.env.VITE_API_URL` |
-| Currency display | `₹${amount.toFixed(2)}` |
-| Route error handling | `try {} catch (err) { reply.status(500) }` |
-| Append decisions | `Append: true` — never `Overwrite: true` |
-| Check shared pkg is real | Look for `export {}` — if present, it's a stub |
-| TypeScript version | `^5.2.2` everywhere |
-| Mobile layout | `flexWrap: 'wrap'`, `flex: '1 1 300px'` |
-| New dependency | Ask user first |
+| Concern                  | Pattern                                          |
+| ------------------------ | ------------------------------------------------ |
+| API dev server           | `tsx --watch src/index.ts`                     |
+| Seed DB                  | `npx tsx seed.ts`                              |
+| API URL in frontend      | `import.meta.env.VITE_API_URL`                 |
+| Currency display         | `₹${amount.toFixed(2)}`                       |
+| Route error handling     | `try {} catch (err) { reply.status(500) }`     |
+| Append decisions         | `Append: true` — never `Overwrite: true`    |
+| Check shared pkg is real | Look for`export {}` — if present, it's a stub |
+| TypeScript version       | `^5.2.2` everywhere                            |
+| Mobile layout            | `flexWrap: 'wrap'`, `flex: '1 1 300px'`      |
+| New dependency           | Ask user first                                   |
 
 ---
 
 ## 🛑 RULE 17: Enforce Hexagonal Architecture (Ports and Adapters)
 
-All backend code (`apps/api`) MUST strictly follow a Hexagonal Architecture. 
+All backend code (`apps/api`) MUST strictly follow a Hexagonal Architecture.
 
 **Rules:**
+
 - ✅ **Core (Domain/Use Cases)**: Business logic lives here. It must NEVER import from `fastify`, `prisma`, or external APIs directly.
 - ✅ **Ports**: Define TypeScript interfaces in the Core for outbound operations (e.g., `RestaurantRepository`).
 - ✅ **Primary Adapters (Inbound)**: HTTP routes (Fastify) belong here. They parse input, call Use Cases, and format responses.
@@ -320,6 +337,7 @@ All backend code (`apps/api`) MUST strictly follow a Hexagonal Architecture.
 - ❌ **NEVER** write Prisma queries directly inside Fastify route handlers.
 
 **Directory Structure:**
+
 ```
 apps/api/src/
   core/
@@ -337,5 +355,38 @@ apps/api/src/
 
 ## 🚫 RULE 18: No Standalone Deployment Configuration Files
 
-Do NOT create standalone deployment configuration files like `Dockerfile`, `.dockerignore`, or `vercel.json` anywhere in the repository. 
+Do NOT create standalone deployment configuration files like `Dockerfile`, `.dockerignore`, or `vercel.json` anywhere in the repository.
 All deployment instructions and configurations should be provided inline within the `README.md` file so the user can implement them manually if they choose to.
+
+---
+
+## 🏗️ RULE 19: Database Schema Hardening & Soft Deletes
+
+All Prisma models MUST adhere to strict database hygiene and hardening rules to preserve historical data and metrics:
+
+- Every model must include `createdAt DateTime @default(now())` and `updatedAt DateTime @updatedAt`.
+- Archivable or state-changing entities MUST have `isActive Boolean @default(true)` and `deletedAt DateTime?`.
+- **NO HARD DELETES**: Never use `prisma.model.delete()`. Always use soft deletes (`update` with `isActive: false` and `deletedAt: new Date()`).
+- Financial metrics (e.g., `unitPrice`, `lineTotal`) must be snapshotted at the time of creation to prevent historical data mutation if menu prices change.
+- Time-based metrics (e.g., `acceptedAt`, `readyAt`, `servedAt` for Orders) must be tracked strictly for SLA measurement.
+
+---
+
+## 🔐 RULE 20: NextAuth (Auth.js) Integration
+
+All authentication is handled strictly via NextAuth (Auth.js):
+
+- **Backend (Fastify)**: Implement `@auth/core` within the API routes (e.g., `/api/auth/*`).
+- **Frontend (React)**: Do not use standalone JWT management. Rely on custom context hooks (e.g., `AuthContext.tsx`) built around NextAuth.
+- **Session Strategy**: Use JWT sessions for stateless, scalable authentication.
+- **CORS Requirements**: Fastify CORS must be explicitly configured to accept `credentials: true` and specifically allow the frontend origin. Fetch requests from React must include `credentials: 'include'`.
+
+---
+
+## 🧩 RULE 21: Strict OOP & Rich Domain Entities
+
+Move away from Anaemic Domain Models. The core domain layer MUST encapsulate its own business logic:
+
+- **Repositories Map to Domain Entities**: Repositories must retrieve raw Prisma DTOs and immediately map them into Rich Domain Entity classes (e.g., `new TableSession(data)`, `new Order(data)`).
+- **Behavior Lives in the Class**: Use Cases must NOT directly manipulate raw database objects. Methods for state transition, validation, and domain rules must reside on the Entity class itself (e.g., `tableSession.close()`, `order.markServed()`).
+- **Encapsulation**: State changes to an entity must only occur through its defined methods, ensuring invariants and business rules are always enforced.

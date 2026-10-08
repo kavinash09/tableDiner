@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import type { AdminRestaurantsResponse } from '@tablediner/shared-types';
+import { useAuth } from './AuthContext';
+import { Login } from './components/Login';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
 const App = () => {
+  const { user, loading: authLoading, logout } = useAuth();
+
   const [tenants, setTenants] = useState<AdminRestaurantsResponse>([]);
   const [tenantName, setTenantName] = useState('');
   const [restaurantName, setRestaurantName] = useState('');
@@ -51,13 +55,24 @@ const App = () => {
     }
   };
 
+  if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-500">Loading...</div>;
+  if (!user) return <Login />;
+
   return (
     <div className="min-h-screen bg-paper py-8 px-4 sm:px-6 lg:px-8 font-sans text-forest-900">
       <div className="max-w-4xl mx-auto space-y-8">
         
-        <header>
+        <header className="flex justify-between items-start">
+          <div>
           <h1 className="text-3xl font-bold tracking-tight text-forest-900">Platform Admin</h1>
           <p className="text-zinc-500 mt-2">Manage tenants, restaurants, and QR code generation.</p>
+          </div>
+          <button 
+            onClick={logout}
+            className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors"
+          >
+            Sign Out
+          </button>
         </header>
         
         <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 overflow-hidden">

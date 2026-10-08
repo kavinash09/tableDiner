@@ -1,3 +1,4 @@
+import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
@@ -12,6 +13,17 @@ async function main() {
   const tenant = await prisma.tenant.create({
     data: { name: 'TableDiner Demo' }
   });
+
+  const hashedPassword = await bcrypt.hash('password123', 10);
+  await prisma.user.create({
+    data: {
+      name: 'Admin User',
+      email: 'admin@tablediner.com',
+      password: hashedPassword,
+      tenantId: tenant.id
+    }
+  });
+
 
   const restaurant = await prisma.restaurant.create({
     data: {

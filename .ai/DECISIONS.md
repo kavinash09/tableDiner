@@ -110,3 +110,19 @@
   - `shared-validation`: Added Zod schemas for `CreateCategory`, `CreateMenuItem`, and `UpdateMenuItem`.
   - `apps/api`: Extended `Repositories`, `PrismaRepositories`, and `AppUseCases` to handle creation, updating, and deletion of both categories and items. Exposed these via 5 new Fastify routes.
   - `apps/restaurant-admin`: Created a dedicated `<MenuManager />` component to handle category/item creation, inline editing, and deletion with confirmation prompts, replacing the static list.
+
+### 2026-10-08T23:42:00: Added created/updated timestamps to all Database Models
+- **Decision**: Added `createdAt` and `updatedAt` to every model in the Prisma schema.
+- **Why**: An MVP oversight; required for any basic tracking of data creation over time.
+
+### 2026-10-08T23:46:00: Selected Auth.js (NextAuth) for Authentication
+- **Decision**: Added NextAuth (`@auth/core` and `@auth/prisma-adapter`) using JWT sessions directly into the Fastify backend on the `/api/auth/*` route, rather than switching to Next.js.
+- **Why**: The user requested NextAuth. Because our stack is decoupled (Vite + Fastify), building the API adapter via `@auth/core` allows us to gain NextAuth's features while maintaining the existing React SPA architecture.
+
+### 2026-10-08T23:52:00: Hardened Database Schema for Production Metrics
+- **Decision**: Added soft-deletes (`isActive`, `deletedAt`), specific timeline metrics (`acceptedAt`, `readyAt`, `servedAt` on Orders), onboarding status for Tenants, and price snapshots (`unitPrice` on OrderItem).
+- **Why**: Deleting Tenants or updating MenuItem prices previously destroyed global metrics. A production application requires historical auditing and SLA tracking.
+
+### 2026-10-08T23:52:30: Introduced Strict OOP Domain Entities
+- **Decision**: Created Rich Domain Entities (`TableSession.ts`, `Order.ts`) in the core domain layer, moving away from manipulating raw JSON/Prisma DTOs in the UseCases layer.
+- **Why**: The Hexagonal Architecture previously implemented had an "Anaemic Domain Model". Business logic (like checking payment totals or advancing order states) must be encapsulated within the Domain Entities themselves for true OOP adherence.
